@@ -5,10 +5,12 @@ from __future__ import annotations
 import gzip
 import hashlib
 import os
+import struct
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .pak import read_pak
 from .utoc import Toc, read_toc
 
 RECORD = 32  # 12-byte chunk id + 20-byte hash
@@ -20,8 +22,15 @@ def is_mod(toc_path: Path, paks_dir: Path) -> bool:
 
 
 def containers(paks_dir: Path) -> tuple[list[Path], list[Path]]:
+    """(game .utoc files, mods). A mod is a .utoc, or a .pak with no .utoc of the same name next to it (a .pak
+    beside a .utoc is only the container's small companion)."""
     found = sorted(Path(paks_dir).rglob("*.utoc"))
-    return [p for p in found if not is_mod(p, paks_dir)], [p for p in found if is_mod(p, paks_dir)]
+    paks = [p for p in sorted(Path(paks_dir).rglob("*.pak")) if is_mod(p, paks_dir) and not p.with_suffix(".utoc").exists()]
+    return [p for p in found if not is_mod(p, paks_dir)], sorted([p for p in found if is_mod(p, paks_dir)] + paks)
+
+
+def read_mod(path: Path):
+    return read_toc(path) if path.suffix.lower() == ".utoc" else read_pak(path)
 
 
 def fingerprint(game: list[Path]) -> str:
@@ -122,6 +131,7 @@ class Report:
     conflicts: dict[bytes, list[Toc]]                      # file -> mods that all replace it
     since: str = ""                                        # when this version of the game was first seen (UTC)
     first: bool = False                                    # no snapshot at all before this run
+    unreadable: list[tuple[str, str]] = field(default_factory=list)  # (mod name, why) for mods pakwatch can't read
     files_changed: int = 0                                 # what the update did to the game as a whole
     files_added: int = 0
     files_removed: int = 0
@@ -169,7 +179,19 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
     fp = fingerprint(game_paths)
     game = game_chunks([read_toc(p) for p in game_paths])
     patch_time = max(p.stat().st_mtime for p in game_paths)
-    report = build_report(game, [read_toc(p) for p in mod_paths], baseline(folder, fp), fp, patch_time)
+    readable, unreadable = [], []
+    for p in mod_paths:
+        try:
+            m = read_mod(p)
+        except (ValueError, OSError, struct.error) as e:  # one broken mod must not hide the others
+            unreadable.append((p.stem, str(e)))
+            continue
+        if getattr(m, "encrypted", False) and not m.chunks():
+            unreadable.append((p.stem, "its file list is encrypted"))
+            continue
+        readable.append(m)
+    report = build_report(game, readable, baseline(folder, fp), fp, patch_time)
+    report.unreadable = unreadable
     from .steam import build_id  # steam.py imports this module
     report.build = build_id(paks_dir)
     snaps = _snaps(folder)

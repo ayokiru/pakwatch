@@ -324,6 +324,9 @@ function render(r, name) {
   }
   if (r.disabled.length) parts.push(section("Turned off", r.disabled.map(offItem),
     "pakwatch keeps these outside the game, so it doesn't load them. Turn one on to put it back where it was."));
+  if (r.unreadable.length) parts.push(section("Couldn't read", r.unreadable.map((m) => el("div", { class: "item" },
+    el("div", { class: "row" }, symbol("gray", "info", true), el("span", { class: "main" }, el("div", { class: "name" }, m.name),
+      el("div", { class: "sub" }, m.why))))), "pakwatch skips these mods, so the report says nothing about them."));
   if (r.conflicts.length) parts.push(section("Replaced by more than one mod", r.conflicts.map(conflictItem),
     "The game loads one version of each file, so the other mods lose that part."));
   main.replaceChildren(...parts);

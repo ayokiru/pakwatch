@@ -37,6 +37,8 @@ def render(r: dict, name: str) -> str:
                 out += [f"  - {f['what']} `{f['path']}`" for f in m["touched"]]
             else:
                 out.append(f"- `{m['name']}`")
+    if r.get("unreadable"):
+        out += ["", "**Couldn't read**"] + [f"- `{x['name']}`: {x['why']}" for x in r["unreadable"]]
     if r["conflicts"]:
         out += ["", "**Replaced by more than one mod**"]
         out += [f"- `{c['path']}`: " + ", ".join(f"`{m}`" for m in c["mods"]) for c in r["conflicts"]]

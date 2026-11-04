@@ -34,7 +34,9 @@ pakwatch
 
 pakwatch opens in your browser and lists the Unreal Engine games in your Steam libraries. Pick one, or type the folder of a game that isn't on Steam.
 
-The first check remembers the game as it is now, so run it while your mods work. Open pakwatch again after the next game update.
+The first check remembers the game as it is now, so run it while your mods work. Open pakwatch again after the next game update. The report then also says how many game files the update changed and, for Steam games, which build it went from and to.
+
+From the report you can turn a mod off until its author catches up. pakwatch moves the mod's files out of the game, and Turn On puts them back where they were. Copy Report puts the whole report on the clipboard as Markdown, ready for a comment to the mod's author or a bug report, without any of your local paths.
 
 You need Python 3.11 or newer and nothing else.
 
@@ -52,22 +54,23 @@ Give it the game's folder and it prints the same report:
   zzz_Shields_P: ok, replaces 2 game files, adds 0
 ```
 
-The exit code is 0 when everything is fine, 1 when the update touched a mod or two mods collide, and 2 when the folder can't be read, so scripts and mod managers can act on it.
+The exit code is 0 when everything is fine, 1 when the update touched a mod or two mods collide, and 2 when the folder can't be read, so scripts and mod managers can act on it. Add `--markdown` to get the shareable version of the report instead.
 
 ## How it works
 
 - pakwatch reads only the tables of contents (`.utoc`) of the game's containers. It never opens the data in `.ucas`, so it needs no AES key, and a whole game takes about a second.
 - Every file in a container has a content hash. pakwatch keeps the hashes of all game files, a few MB per game in `%LOCALAPPDATA%\pakwatch`, and compares them after an update.
 - A mod is any `*_P` container, or anything in a subfolder of `Paks` such as `~mods`.
+- Mods packed as a plain `.pak` work too. Their index lists file paths without hashes, so pakwatch turns each path into the package id the game uses (CityHash64 of the package name) and matches it against the game's files.
 - The report compares with the game as it was before the last update, so it keeps showing what that update touched until the next one.
 
 ## Privacy and safety
 
-pakwatch reads files and changes nothing in the game or your mods. It never connects to the internet. The window is a page served on 127.0.0.1 with a one-time key, so other sites open in your browser can't use it, and it shuts down shortly after you close the tab.
+pakwatch only reads files, except when you press Turn Off or Turn On. Those move one mod's files between the game's `Paks` folder and `%LOCALAPPDATA%\pakwatch`, and never delete or overwrite anything. pakwatch never connects to the internet. The window is a page served on 127.0.0.1 with a one-time key, so other sites open in your browser can't use it, and it shuts down shortly after you close the tab.
 
 ## Limits
 
-- It works with IoStore games, which is most Unreal Engine 5 games. Mods that ship only a `.pak` file aren't read yet.
+- It works with IoStore games, which is most Unreal Engine 5 games. The game's own `.pak` files aren't read, because their file index is usually encrypted. A mod with an encrypted index is listed under "Couldn't read".
 - A changed file doesn't always break a mod, and an unchanged one doesn't prove it works. Treat the list as the places to check first.
 - When a game encrypts its file index, file names come from the mod's own index, which is usually readable.
 

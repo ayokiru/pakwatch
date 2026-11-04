@@ -36,6 +36,8 @@ def show(report: scan.Report, out=sys.stdout) -> int:
             w(f"    {what}: {short(m.toc, cid)}\n")
         if len(hit) > 20:
             w(f"    ...and {len(hit) - 20} more\n")
+    for name, why in report.unreadable:
+        w(f"\n? {name}: couldn't read it ({why})\n")
     if report.conflicts:
         w(f"\nFiles replaced by more than one mod (only one of them wins):\n")
         for cid, tocs in sorted(report.conflicts.items(), key=lambda kv: short(kv[1][0], kv[0])):

@@ -17,13 +17,13 @@ Unreal Engine 5 games keep their files in IoStore containers, and pak mods repla
 
 ## What it tells you
 
-| | |
-|---|---|
-| <img src="docs/status-look.svg" width="20" alt=""> **Needs a look** | The update changed or removed a game file this mod replaces. Look for a newer version of the mod. |
-| <img src="docs/status-updated.svg" width="20" alt=""> **Updated by its author** | The mod is newer than the update, so its author has probably caught up. |
-| <img src="docs/status-fine.svg" width="20" alt=""> **Fine** | None of the files it replaces changed. |
-| <img src="docs/status-adds.svg" width="20" alt=""> **Only adds files** | It replaces nothing, so an update can't clash with it. |
-| <img src="docs/status-shared.svg" width="20" alt=""> **Replaced by more than one mod** | Two mods replace the same file. The game loads one version, and the other mod loses that part. |
+<table>
+  <tr><td width="34%"><img src="docs/status-look.svg" width="20" alt=""> <b>Needs a look</b></td><td>The update changed or removed a game file this mod replaces. Look for a newer version of the mod.</td></tr>
+  <tr><td width="34%"><img src="docs/status-updated.svg" width="20" alt=""> <b>Updated by its author</b></td><td>The mod is newer than the update, so its author has probably caught up.</td></tr>
+  <tr><td width="34%"><img src="docs/status-fine.svg" width="20" alt=""> <b>Fine</b></td><td>None of the files it replaces changed.</td></tr>
+  <tr><td width="34%"><img src="docs/status-adds.svg" width="20" alt=""> <b>Only adds files</b></td><td>It replaces nothing, so an update can't clash with it.</td></tr>
+  <tr><td width="34%"><img src="docs/status-shared.svg" width="20" alt=""> <b>Replaced by more than one mod</b></td><td>Two mods replace the same file. The game loads one version, and the other mod loses that part.</td></tr>
+</table>
 
 ## Get started
 

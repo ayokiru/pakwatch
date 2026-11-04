@@ -64,6 +64,25 @@ class PatchFlowTests(unittest.TestCase):
         self.assertEqual(list(r.conflicts), [SWORD])
         self.assertEqual(sorted(t.path.name for t in r.conflicts[SWORD]), ["zzz_MoreSwords_P.utoc", "zzz_Swords_P.utoc"])
 
+    def test_cli_output_and_exit_code(self):
+        import io
+        from pakwatch import __main__ as cli
+        scan.run(self.paks, self.store)
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20}, self.t0 + 100)
+        out = io.StringIO()
+        code = cli.show(scan.run(self.paks, self.store), out)
+        self.assertEqual(code, 1)
+        self.assertIn("! zzz_Swords_P: patch touched, replaces 1 game files, adds 1", out.getvalue())
+        self.assertIn("changed: package", out.getvalue())
+
+    def test_find_paks(self):
+        from pakwatch.__main__ import find_paks
+        game = Path(self.tmp.name) / "Game"
+        write(game / "Proj" / "Content" / "Paks" / "a.utoc", {SWORD: b"a" * 20}, self.t0)
+        self.assertEqual(find_paks(game), game / "Proj" / "Content" / "Paks")
+        with self.assertRaises(FileNotFoundError):
+            find_paks(Path(self.tmp.name) / "store")
+
     def test_snapshot_round_trip(self):
         snap = scan.Snapshot("abc", "2026-11-04T10:00:00Z", {SWORD: b"a" * 20, BOW: b"c" * 20})
         self.assertEqual(scan.Snapshot.load(snap.save(self.store)).chunks, snap.chunks)

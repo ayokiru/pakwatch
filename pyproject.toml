@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pakwatch"
-version = "0.1.0"
+version = "0.1.1"
 description = "See which of your Unreal Engine 5 mods a game update touched, and which mods collide"
 readme = "PYPI.md"
 license = "MIT"

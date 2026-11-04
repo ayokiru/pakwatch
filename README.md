@@ -1,8 +1,46 @@
-# pakwatch
+<p align="center"><img src="docs/logo.svg" width="88" alt=""></p>
+<h1 align="center">pakwatch</h1>
+<p align="center">See which of your mods a game update touched, before you find out in the game.</p>
+<p align="center">
+  <a href="https://github.com/ayokiru/pakwatch/actions/workflows/test.yml"><img src="https://github.com/ayokiru/pakwatch/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/license-MIT-8e8e93" alt="MIT license">
+</p>
 
-See which mods a game update touched, before you find out in the game.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/window-dark.png">
+  <img src="docs/window-light.png" alt="pakwatch in the browser with example data: seven Unreal Engine 5 games from a Steam library, and Oblivion Remastered after an update, where two mods need a look because the update changed files they replace" width="100%">
+</picture>
+<p align="center"><sub>Example data: the games are real, the mods and the update are made up for the picture.</sub></p>
 
-Unreal Engine 5 games keep their files in IoStore containers (`.utoc` + `.ucas`), and pak mods replace some of those files. After a game update, a mod that replaces a file the update changed can crash the game or quietly undo the fix. pakwatch remembers the game's files and, after an update, tells you which mods replace files that changed. It also lists files that two mods both replace, since only one of them can win.
+Unreal Engine 5 games keep their files in IoStore containers, and pak mods replace some of those files. After a game update, a mod that replaces a file the update changed can crash the game or quietly undo a fix, and you only notice once you play. pakwatch remembers your game's files. After an update it shows which mods replace files that changed, so you know which ones to check for a new version.
+
+## What it tells you
+
+| | |
+|---|---|
+| <img src="docs/status-look.svg" width="20" alt=""> **Needs a look** | The update changed or removed a game file this mod replaces. Look for a newer version of the mod. |
+| <img src="docs/status-updated.svg" width="20" alt=""> **Updated by its author** | The mod is newer than the update, so its author has probably caught up. |
+| <img src="docs/status-fine.svg" width="20" alt=""> **Fine** | None of the files it replaces changed. |
+| <img src="docs/status-adds.svg" width="20" alt=""> **Only adds files** | It replaces nothing, so an update can't clash with it. |
+| <img src="docs/status-shared.svg" width="20" alt=""> **Replaced by more than one mod** | Two mods replace the same file. The game loads one version, and the other mod loses that part. |
+
+## Get started
+
+```
+pip install git+https://github.com/ayokiru/pakwatch
+pakwatch
+```
+
+pakwatch opens in your browser and lists the Unreal Engine games in your Steam libraries. Pick one, or type the folder of a game that isn't on Steam.
+
+The first check remembers the game as it is now, so run it while your mods work. Open pakwatch again after the next game update.
+
+You need Python 3.11 or newer and nothing else.
+
+## On the command line
+
+Give it the game's folder and it prints the same report:
 
 ```
 > pakwatch "C:\Program Files (x86)\Steam\steamapps\common\MyGame"
@@ -14,40 +52,24 @@ Unreal Engine 5 games keep their files in IoStore containers (`.utoc` + `.ucas`)
   zzz_Shields_P: ok, replaces 2 game files, adds 0
 ```
 
-Run `pakwatch` without a folder and it opens in your browser instead. It finds the Unreal Engine games in your Steam libraries, and any other game folder works too.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/window-dark.png">
-  <img src="docs/window-light.png" alt="pakwatch in the browser with example data: seven Unreal Engine 5 games from a Steam library, and Oblivion Remastered after an update, where two mods need a look because the update changed files they replace" width="100%">
-</picture>
-
-<sub>Example data: the games are real, the mods and the update are made up for the picture.</sub>
+The exit code is 0 when everything is fine, 1 when the update touched a mod or two mods collide, and 2 when the folder can't be read, so scripts and mod managers can act on it.
 
 ## How it works
 
-- The first run remembers every game file by its content hash, a few MB in `%LOCALAPPDATA%\pakwatch`. Run it once while your mods work.
-- After an update, the next run compares the game with that snapshot and flags each mod that replaces a file the update changed or removed. A mod written after the update shows as "updated after patch", because its author has probably caught up.
-- pakwatch reads only the container tables. It never opens the `.ucas` data, needs no AES key and changes nothing. A whole game takes about a second.
-- Mods are `*_P` containers and anything in a subfolder of `Paks`, such as `~mods`.
-- The window is a page served on 127.0.0.1 with a one-time key, so other sites in the browser can't use it. It stops shortly after you close the tab.
+- pakwatch reads only the tables of contents (`.utoc`) of the game's containers. It never opens the data in `.ucas`, so it needs no AES key, and a whole game takes about a second.
+- Every file in a container has a content hash. pakwatch keeps the hashes of all game files, a few MB per game in `%LOCALAPPDATA%\pakwatch`, and compares them after an update.
+- A mod is any `*_P` container, or anything in a subfolder of `Paks` such as `~mods`.
+- The report compares with the game as it was before the last update, so it keeps showing what that update touched until the next one.
 
-The exit code is 1 when the update touched a mod or two mods collide, so pakwatch can run in scripts.
+## Privacy and safety
 
-## Install
-
-```
-pip install git+https://github.com/ayokiru/pakwatch
-pakwatch                  # opens in your browser
-pakwatch <game folder>    # prints the report
-```
-
-Needs Python 3.11 or newer and nothing else.
+pakwatch reads files and changes nothing in the game or your mods. It never connects to the internet. The window is a page served on 127.0.0.1 with a one-time key, so other sites open in your browser can't use it, and it shuts down shortly after you close the tab.
 
 ## Limits
 
-- Only IoStore games, which is most UE5 games. Mods that ship only a `.pak` aren't read yet.
-- A changed file doesn't always break a mod, and an unchanged one doesn't prove it works, so treat the list as the places to check first.
-- When the game encrypts its file index, names come from the mod's own index, which is usually readable.
+- It works with IoStore games, which is most Unreal Engine 5 games. Mods that ship only a `.pak` file aren't read yet.
+- A changed file doesn't always break a mod, and an unchanged one doesn't prove it works. Treat the list as the places to check first.
+- When a game encrypts its file index, file names come from the mod's own index, which is usually readable.
 
 ## License
 

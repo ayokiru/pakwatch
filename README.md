@@ -18,8 +18,10 @@ Run `pakwatch` without a folder and it opens in your browser instead. It finds t
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/window-dark.png">
-  <img src="docs/window-light.png" alt="pakwatch in the browser: a test game after an update, two mods that need a look because the update changed files they replace, and the other mods grouped by what the update did to them" width="100%">
+  <img src="docs/window-light.png" alt="pakwatch in the browser with example data: seven Unreal Engine 5 games from a Steam library, and Oblivion Remastered after an update, where two mods need a look because the update changed files they replace" width="100%">
 </picture>
+
+<sub>Example data: the games are real, the mods and the update are made up for the picture.</sub>
 
 ## How it works
 

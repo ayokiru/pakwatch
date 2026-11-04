@@ -220,7 +220,8 @@ function tileColor(name) {  // a stable hue per game, like an app icon
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
   return `linear-gradient(160deg, hsl(${h} 62% 58%), hsl(${(h + 25) % 360} 58% 42%))`;
 }
-const initials = (name) => name.split(/[\s:_-]+/).filter((w) => /^[A-Za-z0-9]/.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
+const initials = (name) => name.split(/[\s:_-]+/)  // "The Elder Scrolls IV: ..." -> ES, not TE
+  .filter((w) => /^[A-Za-z0-9]/.test(w) && !/^(the|of|a|an|[ivx]+)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 
 async function api(path) {
   const r = await fetch(path, { headers: { "X-Pakwatch-Token": TOKEN } });

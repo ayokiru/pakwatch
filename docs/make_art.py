@@ -143,4 +143,6 @@ def banner(theme: str, w=1280, h=400, path=None):
 if __name__ == "__main__":
     banner("dark")
     banner("light")
+    banner("dark", 1280, 640, OUT / "social-preview.png")
+    Image.open(OUT / "social-preview.png").resize((1280, 640), Image.LANCZOS).save(OUT / "social-preview.png", optimize=True)  # GitHub wants 1280x640, under 1 MB
     print("written to", OUT)

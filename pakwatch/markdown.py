@@ -20,7 +20,7 @@ def render(r: dict, name: str) -> str:
         out.append(f"First check, nothing to compare with yet. {_files(r['game_files'])}, {len(r['mods'])} mods.")
     elif r["patched"]:
         build = f" (build {u['build_before']} → {u['build']})" if u["build_before"] and u["build"] else ""
-        out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update changed {u['changed']:,} game files, "
+        out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update changed {_files(u['changed'])}, "
                    f"added {u['added']:,} and removed {u['removed']:,}.")
     else:
         out.append(f"No game update since {_date(r['since'])}" + (f" (build {u['build']})." if u["build"] else "."))

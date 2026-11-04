@@ -27,8 +27,10 @@ Unreal Engine 5 games keep their files in IoStore containers, and pak mods repla
 
 ## Get started
 
+Download `pakwatch.exe` from the [latest release](https://github.com/ayokiru/pakwatch/releases/latest) and run it, or install it with Python 3.11 or newer:
+
 ```
-pip install git+https://github.com/ayokiru/pakwatch
+pip install pakwatch
 pakwatch
 ```
 
@@ -37,8 +39,6 @@ pakwatch opens in your browser and lists the Unreal Engine games in your Steam l
 The first check remembers the game as it is now, so run it while your mods work. Open pakwatch again after the next game update. The report then also says how many game files the update changed and, for Steam games, which build it went from and to.
 
 From the report you can turn a mod off until its author catches up. pakwatch moves the mod's files out of the game, and Turn On puts them back where they were. Copy Report puts the whole report on the clipboard as Markdown, ready for a comment to the mod's author or a bug report, without any of your local paths.
-
-You need Python 3.11 or newer and nothing else.
 
 ## On the command line
 
@@ -54,7 +54,7 @@ Give it the game's folder and it prints the same report:
   zzz_Shields_P: ok, replaces 2 game files, adds 0
 ```
 
-The exit code is 0 when everything is fine, 1 when the update touched a mod or two mods collide, and 2 when the folder can't be read, so scripts and mod managers can act on it. Add `--markdown` to get the shareable version of the report instead.
+The exit code is 0 when everything is fine, 1 when the update touched a mod or two mods collide, and 2 when the folder can't be read, so scripts and mod managers can act on it. Add `--markdown` to get the shareable version of the report instead. `pakwatch --no-browser` starts the window without opening it and prints its address.
 
 ## How it works
 

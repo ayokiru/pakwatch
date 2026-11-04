@@ -137,7 +137,10 @@ def run(open_browser: bool = True) -> None:
         server.shutdown()
 
     threading.Thread(target=watchdog, daemon=True).start()
-    print(f"pakwatch is open in your browser. If it didn't open, go to {server.url}")
     if open_browser:
+        print(f"pakwatch is open in your browser. If it didn't open, go to {server.url}", flush=True)
         webbrowser.open(server.url)
+    else:
+        print(f"pakwatch is running at {server.url}", flush=True)
+    print("It stops by itself shortly after you close the tab, or close this window to stop it now.", flush=True)
     server.serve_forever()

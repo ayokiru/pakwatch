@@ -5,7 +5,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import scan
+from . import __version__, scan
 from .utoc import Toc
 
 
@@ -20,7 +20,7 @@ def show(report: scan.Report, out=sys.stdout) -> int:
     elif report.patched:
         w(f"{report.game_files:,} game files. The game changed since {report.snapshot.taken}; mods compared with that version.\n")
         build = f" (build {report.build_before} -> {report.build})" if report.build_before and report.build else ""
-        w(f"The update changed {report.files_changed:,} game files, added {report.files_added:,} "
+        w(f"The update changed {report.files_changed:,} game file{'' if report.files_changed == 1 else 's'}, added {report.files_added:,} "
           f"and removed {report.files_removed:,}{build}.\n")
     else:
         w(f"{report.game_files:,} game files. No update since {report.since}.\n")
@@ -50,10 +50,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("game", type=Path, nargs="?",
                     help="the game's install folder (or its Content\\Paks); without it pakwatch opens in your browser")
     ap.add_argument("--markdown", action="store_true", help="print the report as Markdown, ready to paste")
+    ap.add_argument("--no-browser", action="store_true", help="window mode: print the address instead of opening it")
+    ap.add_argument("--version", action="version", version=f"pakwatch {__version__}")
     args = ap.parse_args(argv)
     if args.game is None:
         from . import gui
-        gui.run()
+        gui.run(open_browser=not args.no_browser)
         return 0
     try:
         paks = scan.find_paks(args.game)

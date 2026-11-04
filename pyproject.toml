@@ -1,10 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "pakwatch"
 version = "0.1.0"
-description = "See which Unreal Engine 5 mods a game patch broke, and which mods collide"
+description = "See which of your Unreal Engine 5 mods a game update touched, and which mods collide"
+readme = "PYPI.md"
+license = "MIT"
 requires-python = ">=3.11"
-license = {text = "MIT"}
 dependencies = []
+keywords = ["modding", "unreal engine", "ue5", "iostore", "pak", "steam", "game update"]
+classifiers = ["Programming Language :: Python :: 3", "Environment :: Console", "Environment :: Web Environment",
+               "Operating System :: Microsoft :: Windows", "Topic :: Games/Entertainment", "Topic :: Utilities"]
+
+[project.urls]
+Homepage = "https://github.com/ayokiru/pakwatch"
+Documentation = "https://github.com/ayokiru/pakwatch#readme"
+Issues = "https://github.com/ayokiru/pakwatch/issues"
 
 [project.scripts]
 pakwatch = "pakwatch.__main__:main"

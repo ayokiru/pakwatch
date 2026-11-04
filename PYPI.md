@@ -115,4 +115,4 @@ pakwatch only reads files, except when you press Turn Off or Turn On. Those move
 
 ## License
 
-MIT
+[MIT](https://github.com/ayokiru/pakwatch/blob/main/LICENSE)

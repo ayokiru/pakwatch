@@ -47,13 +47,20 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="pakwatch", description=__doc__.split(": ", 1)[1])
     ap.add_argument("game", type=Path, nargs="?",
                     help="the game's install folder (or its Content\\Paks); without it pakwatch opens in your browser")
+    ap.add_argument("--markdown", action="store_true", help="print the report as Markdown, ready to paste")
     args = ap.parse_args(argv)
     if args.game is None:
         from . import gui
         gui.run()
         return 0
     try:
-        report = scan.run(scan.find_paks(args.game))
+        paks = scan.find_paks(args.game)
+        if args.markdown:
+            from .gui import full_report
+            r = full_report(paks)
+            sys.stdout.buffer.write(r["markdown"].encode("utf-8"))  # UTF-8 even on a cp1251 console
+            return 1 if r["conflicts"] or any(x["status"] == "patch touched" for x in r["mods"]) else 0
+        report = scan.run(paks)
     except (FileNotFoundError, ValueError) as e:
         print(f"pakwatch: {e}", file=sys.stderr)
         return 2

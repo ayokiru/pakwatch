@@ -60,6 +60,9 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(r["game_files"], 1)
         self.assertEqual(r["mods"][0]["name"], "zzz_Mine_P")
         self.assertEqual((r["mods"][0]["replaced"], r["mods"][0]["added"], r["mods"][0]["where"]), (1, 1, "~mods"))
+        self.assertEqual(r["name"], "Game")  # off Steam: the install folder's name
+        self.assertIn("`zzz_Mine_P`", r["markdown"])
+        self.assertNotIn(self.tmp.name, r["markdown"])  # nothing that shows where the user's files are
 
     def test_bad_folder_is_a_400(self):
         status, body = self.get("/api/scan?folder=C:/nowhere-at-all", token=self.server.token)

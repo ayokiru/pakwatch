@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import scan, steam
+from . import markdown, scan, steam
 from .__main__ import short
 
 PAGE = Path(__file__).with_name("web") / "index.html"
@@ -35,6 +35,14 @@ def report_json(r: scan.Report, paks: Path) -> dict:
     return {"paks": str(paks), "game_files": r.game_files, "patched": r.patched,
             "snapshot": r.snapshot.taken if r.snapshot else None, "since": r.since, "first": r.first, "update": {"changed": r.files_changed, "added": r.files_added, "removed": r.files_removed,
                                           "build_before": r.build_before, "build": r.build}, "mods": mods, "conflicts": conflicts}
+
+
+def full_report(paks: Path) -> dict:
+    """The report plus the game's name and the same report as Markdown, ready to share."""
+    r = report_json(scan.run(paks), paks)
+    r["name"] = steam.game_name(paks)
+    r["markdown"] = markdown.render(r, r["name"])
+    return r
 
 
 class Server(ThreadingHTTPServer):
@@ -89,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, json.dumps(games).encode())
             if url.path == "/api/scan":
                 paks = scan.find_paks(Path(query.get("folder", [""])[0]))
-                return self.send(200, json.dumps(report_json(scan.run(paks), paks)).encode())
+                return self.send(200, json.dumps(full_report(paks)).encode())
         except (FileNotFoundError, ValueError, OSError) as e:
             return self.fail(400, str(e))
         self.fail(404, "not found")

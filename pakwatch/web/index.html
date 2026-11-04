@@ -35,6 +35,7 @@ body { background: var(--window); color: var(--label); font: 0.875rem/1.45 var(-
 button, input { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 1px; box-shadow: 0 0 0 1px var(--accent); border-radius: 8px; }
 svg { flex: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .app { display: grid; grid-template-columns: 15.5rem 1fr; height: 100%; }
 
@@ -77,6 +78,7 @@ svg { flex: none; }
 .tb-btn:hover { background: var(--fill-hover); }
 .tb-btn:active { transform: scale(.97); }
 .tb-btn svg { width: 15px; height: 15px; }
+.tb-btn.done { color: var(--green); }
 .tb-btn[aria-busy="true"] svg { animation: spin 1s linear infinite; }
 
 .page { max-width: 54rem; margin: 0 auto; padding: .4rem 1.6rem 3rem; }
@@ -168,6 +170,8 @@ button.row:active { background: var(--fill-hover); }
     <div class="toolbar">
       <span class="t" id="tb-title" aria-hidden="true"></span>
       <span class="spacer"></span>
+      <span class="sr-only" id="copy-status" aria-live="polite"></span>
+      <button class="tb-btn" id="copy" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy Report</span></button>
       <button class="tb-btn" id="again" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Check Again</button>
     </div>
     <main class="page" id="report" aria-live="polite"></main>
@@ -294,6 +298,9 @@ function render(r, name) {
   const again = document.getElementById("again");
   again.hidden = false;
   again.onclick = () => check(current, name);
+  const copy = document.getElementById("copy");
+  copy.hidden = false;
+  copy.onclick = () => copyReport(copy, r.markdown);
   const u = r.update;
   const facts = el("div", { class: "facts" }, el("span", {}, count(r.game_files, "game file")), el("span", {}, count(r.mods.length, "mod")),
     r.patched ? el("span", {}, `the update changed ${num(u.changed)}, added ${num(u.added)}, removed ${num(u.removed)}`) : null,
@@ -310,6 +317,20 @@ function render(r, name) {
     "The game loads one version of each file, so the other mods lose that part."));
   main.replaceChildren(...parts);
   main.classList.remove("fade-in"); void main.offsetWidth; main.classList.add("fade-in");
+}
+
+async function copyReport(button, text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {  // older browsers or a denied permission
+    const t = el("textarea", { style: "position:fixed;opacity:0" }); t.value = text;
+    document.body.append(t); t.select(); document.execCommand("copy"); t.remove();
+  }
+  const label = button.querySelector("span");
+  label.textContent = "Copied";
+  document.getElementById("copy-status").textContent = "Report copied to the clipboard";
+  button.classList.add("done");
+  clearTimeout(button.timer);
+  button.timer = setTimeout(() => { label.textContent = "Copy Report"; button.classList.remove("done"); }, 1600);
 }
 
 function section(title, items, foot) {

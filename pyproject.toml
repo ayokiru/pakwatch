@@ -1,0 +1,10 @@
+[project]
+name = "pakwatch"
+version = "0.1.0"
+description = "See which Unreal Engine 5 mods a game patch broke, and which mods collide"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = []
+
+[tool.setuptools]
+packages = ["pakwatch"]

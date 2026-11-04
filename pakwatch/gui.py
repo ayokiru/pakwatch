@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import markdown, scan, steam
+from . import markdown, mods, scan, steam
 from .__main__ import short
 
 PAGE = Path(__file__).with_name("web") / "index.html"
@@ -42,6 +42,7 @@ def full_report(paks: Path) -> dict:
     r = report_json(scan.run(paks), paks)
     r["name"] = steam.game_name(paks)
     r["markdown"] = markdown.render(r, r["name"])
+    r["disabled"] = mods.turned_off(paks)
     return r
 
 
@@ -101,6 +102,30 @@ class Handler(BaseHTTPRequestHandler):
         except (FileNotFoundError, ValueError, OSError) as e:
             return self.fail(400, str(e))
         self.fail(404, "not found")
+
+
+    def do_POST(self):
+        """The only request that changes files: turn a mod off or on. Same host and token checks as GET."""
+        if self.headers.get("Host") not in self.server.hosts:
+            return self.fail(403, "wrong host")
+        if not secrets.compare_digest(self.headers.get("X-Pakwatch-Token", ""), self.server.token):
+            return self.fail(403, "bad token")
+        url = urlparse(self.path)
+        if url.path != "/api/mod":
+            return self.fail(404, "not found")
+        self.server.last_ping = time.monotonic()
+        query = {k: v[0] for k, v in parse_qs(url.query).items()}
+        try:
+            paks = scan.find_paks(Path(query.get("folder", "")))
+            action = {"off": mods.turn_off, "on": mods.turn_on}.get(query.get("action", ""))
+            if action is None:
+                return self.fail(400, "action must be off or on")
+            action(paks, query.get("name", ""))
+        except PermissionError:
+            return self.fail(409, "The game is using this mod. Close the game and try again.")
+        except (FileNotFoundError, FileExistsError, ValueError, OSError) as e:
+            return self.fail(400, str(e))
+        self.send(200, b"{}")
 
 
 def run(open_browser: bool = True) -> None:

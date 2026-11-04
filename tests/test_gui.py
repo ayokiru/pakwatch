@@ -64,6 +64,24 @@ class ServerTests(unittest.TestCase):
         self.assertIn("`zzz_Mine_P`", r["markdown"])
         self.assertNotIn(self.tmp.name, r["markdown"])  # nothing that shows where the user's files are
 
+    def post(self, path, token=None):
+        c = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=10)
+        headers = {"Host": f"127.0.0.1:{self.server.server_port}"}
+        if token is not None:
+            headers["X-Pakwatch-Token"] = token
+        c.request("POST", path, headers=headers)
+        r = c.getresponse()
+        return r.status, r.read()
+
+    def test_turn_off_and_on(self):
+        folder = str(self.game).replace("\\", "/")
+        self.assertEqual(self.post(f"/api/mod?folder={folder}&name=zzz_Mine_P&action=off")[0], 403)  # no token
+        self.assertEqual(self.post(f"/api/mod?folder={folder}&name=zzz_Mine_P&action=off", self.server.token)[0], 200)
+        r = json.loads(self.get("/api/scan?folder=" + folder, token=self.server.token)[1])
+        self.assertEqual((r["mods"], r["disabled"]), ([], [{"name": "zzz_Mine_P", "where": "~mods"}]))
+        self.assertEqual(self.post(f"/api/mod?folder={folder}&name=zzz_Mine_P&action=on", self.server.token)[0], 200)
+        self.assertEqual(self.post(f"/api/mod?folder={folder}&name=zzz_Mine_P&action=delete", self.server.token)[0], 400)
+
     def test_bad_folder_is_a_400(self):
         status, body = self.get("/api/scan?folder=C:/nowhere-at-all", token=self.server.token)
         self.assertEqual(status, 400)

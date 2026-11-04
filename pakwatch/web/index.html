@@ -123,6 +123,11 @@ button.row:active { background: var(--fill-hover); }
 .where { margin-top: .5rem; font-size: .75rem; color: var(--tertiary); }
 
 .conflict .row { align-items: flex-start; }
+.actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .6rem; }
+.actions .where { margin: 0; }
+.tb-btn:disabled { opacity: .5; }
+.alert { display: flex; align-items: center; gap: .6rem; margin: .4rem 0 1rem; padding: .6rem .9rem; border-radius: 10px;
+  background: var(--group); box-shadow: var(--shadow); }
 .path { font: .78rem var(--mono); word-break: break-all; }
 
 .empty { text-align: center; padding: 5rem 1rem; color: var(--secondary); }
@@ -188,6 +193,7 @@ const PATHS = {  // symbol shapes, our own constants
   info: '<path d="M12 11v6"/><path d="M12 7h.01"/>',
   pair: '<path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h5"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  power: '<path d="M12 4v7"/><path d="M7.5 7a7 7 0 1 0 9 0"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
 };
 const KIND = {
@@ -227,8 +233,8 @@ function tileColor(name) {  // a stable hue per game, like an app icon
 const initials = (name) => name.split(/[\s:_-]+/)  // "The Elder Scrolls IV: ..." -> ES, not TE
   .filter((w) => /^[A-Za-z0-9]/.test(w) && !/^(the|of|a|an|[ivx]+)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 
-async function api(path) {
-  const r = await fetch(path, { headers: { "X-Pakwatch-Token": TOKEN } });
+async function api(path, method = "GET") {
+  const r = await fetch(path, { method, headers: { "X-Pakwatch-Token": TOKEN } });
   const body = await r.json();
   if (!r.ok) throw new Error(body.error || r.statusText);
   return body;
@@ -295,6 +301,8 @@ function render(r, name) {
   const main = document.getElementById("report");
   const [color, sym, title, text] = verdict(r, name);
   document.getElementById("tb-title").textContent = name;
+  const side = [...document.querySelectorAll(".game")].find((b) => b.dataset.folder === current);
+  if (side) side.querySelector(".s").textContent = r.mods.length ? count(r.mods.length, "mod") : "No mods";  // after a mod was turned off
   const again = document.getElementById("again");
   again.hidden = false;
   again.onclick = () => check(current, name);
@@ -303,7 +311,8 @@ function render(r, name) {
   copy.onclick = () => copyReport(copy, r.markdown);
   const u = r.update;
   const facts = el("div", { class: "facts" }, el("span", {}, count(r.game_files, "game file")), el("span", {}, count(r.mods.length, "mod")),
-    r.patched ? el("span", {}, `the update changed ${num(u.changed)}, added ${num(u.added)}, removed ${num(u.removed)}`) : null,
+    r.patched ? el("span", {}, "the update " + [["changed", u.changed], ["added", u.added], ["removed", u.removed]]
+      .filter(([, n]) => n).map(([w, n], i) => `${w} ${i ? num(n) : count(n, "file")}`).join(", ")) : null,
     r.patched && u.build_before && u.build && u.build_before !== u.build ? el("span", {}, `build ${u.build_before} → ${u.build}`) : null,
     !r.patched && u.build ? el("span", {}, `build ${u.build}`) : null,
     el("span", { class: "path" }, r.paks));
@@ -313,6 +322,8 @@ function render(r, name) {
     const list = r.mods.filter((m) => m.status === status);
     if (list.length) parts.push(section(KIND[status].section, list.map(modItem)));
   }
+  if (r.disabled.length) parts.push(section("Turned off", r.disabled.map(offItem),
+    "pakwatch keeps these outside the game, so it doesn't load them. Turn one on to put it back where it was."));
   if (r.conflicts.length) parts.push(section("Replaced by more than one mod", r.conflicts.map(conflictItem),
     "The game loads one version of each file, so the other mods lose that part."));
   main.replaceChildren(...parts);
@@ -320,8 +331,10 @@ function render(r, name) {
 }
 
 async function copyReport(button, text) {
-  try { await navigator.clipboard.writeText(text); }
-  catch {  // older browsers or a denied permission
+  try {  // writeText can hang without settling (no user gesture, unfocused tab), so it gets a second
+    await Promise.race([navigator.clipboard.writeText(text), new Promise((_, no) => setTimeout(() => no(new Error("clipboard timeout")), 1000))]);
+  }
+  catch {  // older browsers, a denied permission, or the timeout above
     const t = el("textarea", { style: "position:fixed;opacity:0" }); t.value = text;
     document.body.append(t); t.select(); document.execCommand("copy"); t.remove();
   }
@@ -373,8 +386,36 @@ function modItem(m) {
   } else {
     detail.push(el("p", { class: "where" }, "It only adds files of its own, so a game update can't change anything it replaces."));
   }
-  detail.push(el("div", { class: "where" }, `In ${m.where}`));
+  detail.push(el("div", { class: "actions" }, el("span", { class: "where" }, `In ${m.where}`),
+    el("button", { class: "tb-btn", type: "button", onclick: (e) => toggleMod(e.currentTarget, m.name, "off") }, svg("power", 2), "Turn Off")));
   return disclosure([symbol(k.color, k.sym, true), el("span", { class: "main" }, el("div", { class: "name" }, m.name), el("div", { class: "sub" }, sub))], detail);
+}
+
+function offItem(m) {
+  return el("div", { class: "item" }, el("div", { class: "row" }, symbol("gray", "power", true),
+    el("span", { class: "main" }, el("div", { class: "name" }, m.name), el("div", { class: "sub" }, `Off, returns to ${m.where}`)),
+    el("button", { class: "tb-btn", type: "button", onclick: (e) => toggleMod(e.currentTarget, m.name, "on") }, "Turn On")));
+}
+
+async function toggleMod(button, name, action) {
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    await api(`/api/mod?folder=${encodeURIComponent(current)}&name=${encodeURIComponent(name)}&action=${action}`, "POST");
+    document.getElementById("copy-status").textContent = `${name} turned ${action}`;
+    await check(current, document.getElementById("tb-title").textContent);
+  } catch (e) {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+    alertBar(e.message);
+  }
+}
+
+function alertBar(text) {  // a message under the toolbar, not a modal dialog
+  const bar = el("div", { class: "alert fade-in", role: "alert" }, symbol("orange", "warn", true), el("span", {}, text));
+  document.querySelector(".alert")?.remove();
+  document.getElementById("report").prepend(bar);
+  setTimeout(() => bar.remove(), 6000);
 }
 
 function conflictItem(c) {

@@ -63,24 +63,26 @@ class Snapshot:
     fingerprint: str
     taken: str
     chunks: dict[bytes, bytes]
+    build: str = ""  # Steam build id of this game version, if known
 
     def save(self, folder: Path) -> Path:
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{self.taken.replace(':', '')}_{self.fingerprint}.snap"
         body = b"".join(c + h for c, h in sorted(self.chunks.items()))
+        head = " ".join(filter(None, ("pakwatch1", self.fingerprint, self.taken, self.build)))
         with gzip.open(path, "wb") as f:
-            f.write(f"pakwatch1 {self.fingerprint} {self.taken}\n".encode() + body)
+            f.write(head.encode() + b"\n" + body)
         return path
 
     @staticmethod
     def load(path: Path) -> Snapshot:
         data = gzip.decompress(Path(path).read_bytes())
         head, body = data.split(b"\n", 1)
-        magic, fp, taken = head.decode().split(" ")
-        if magic != "pakwatch1" or len(body) % RECORD:
+        parts = head.decode().split(" ")  # snapshots from 0.1 have no build id
+        if parts[0] != "pakwatch1" or len(parts) < 3 or len(body) % RECORD:
             raise ValueError(f"{Path(path).name} is not a pakwatch snapshot")
         chunks = {body[i:i + 12]: body[i + 12:i + RECORD] for i in range(0, len(body), RECORD)}
-        return Snapshot(fp, taken, chunks)
+        return Snapshot(parts[1], parts[2], chunks, parts[3] if len(parts) > 3 else "")
 
 
 def _snaps(folder: Path) -> list[Path]:
@@ -120,6 +122,11 @@ class Report:
     conflicts: dict[bytes, list[Toc]]                      # file -> mods that all replace it
     since: str = ""                                        # when this version of the game was first seen (UTC)
     first: bool = False                                    # no snapshot at all before this run
+    files_changed: int = 0                                 # what the update did to the game as a whole
+    files_added: int = 0
+    files_removed: int = 0
+    build: str = ""                                        # Steam build id now, and before the update
+    build_before: str = ""
 
 
 def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | None, fp: str,
@@ -141,7 +148,14 @@ def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | Non
                 r.added += 1
         reports.append(r)
     conflicts = {cid: ms for cid, ms in owners.items() if len(ms) > 1}
-    return Report(len(game), snap, patched, reports, conflicts)
+    report = Report(len(game), snap, patched, reports, conflicts)
+    if patched:
+        old = snap.chunks
+        report.files_changed = sum(1 for c, h in game.items() if c in old and old[c] != h)
+        report.files_added = len(game.keys() - old.keys())
+        report.files_removed = len(old.keys() - game.keys())
+        report.build_before = snap.build
+    return report
 
 
 def run(paks_dir: Path, folder: Path | None = None) -> Report:
@@ -156,6 +170,8 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
     game = game_chunks([read_toc(p) for p in game_paths])
     patch_time = max(p.stat().st_mtime for p in game_paths)
     report = build_report(game, [read_toc(p) for p in mod_paths], baseline(folder, fp), fp, patch_time)
+    from .steam import build_id  # steam.py imports this module
+    report.build = build_id(paks_dir)
     snaps = _snaps(folder)
     report.first = not snaps
     mine = [p for p in snaps if p.stem.endswith("_" + fp)]
@@ -164,5 +180,5 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
         report.since = f"{t[:13]}:{t[13:15]}:{t[15:]}"
     else:
         report.since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        Snapshot(fp, report.since, game).save(folder)
+        Snapshot(fp, report.since, game, report.build).save(folder)
     return report

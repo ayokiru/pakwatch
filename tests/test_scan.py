@@ -86,9 +86,24 @@ class PatchFlowTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             find_paks(Path(self.tmp.name) / "store")
 
+    def test_update_totals(self):
+        scan.run(self.paks, self.store)
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20, NEW: b"z" * 20}, self.t0 + 100)
+        r = scan.run(self.paks, self.store)
+        self.assertEqual((r.files_changed, r.files_added, r.files_removed), (1, 1, 1))  # sword, the new file, the bow
+
     def test_snapshot_round_trip(self):
-        snap = scan.Snapshot("abc", "2026-11-04T10:00:00Z", {SWORD: b"a" * 20, BOW: b"c" * 20})
-        self.assertEqual(scan.Snapshot.load(snap.save(self.store)).chunks, snap.chunks)
+        snap = scan.Snapshot("abc", "2026-11-04T10:00:00Z", {SWORD: b"a" * 20, BOW: b"c" * 20}, "26266538")
+        back = scan.Snapshot.load(snap.save(self.store))
+        self.assertEqual((back.chunks, back.build), (snap.chunks, "26266538"))
+
+    def test_snapshot_without_build_id(self):  # written by pakwatch 0.1
+        import gzip
+        path = self.store / "old.snap"
+        self.store.mkdir(parents=True)
+        path.write_bytes(gzip.compress(b"pakwatch1 abc 2026-11-04T10:00:00Z\n" + SWORD + b"a" * 20))
+        old = scan.Snapshot.load(path)
+        self.assertEqual((old.build, old.chunks), ("", {SWORD: b"a" * 20}))
 
 
 if __name__ == "__main__":

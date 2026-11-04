@@ -19,6 +19,9 @@ def show(report: scan.Report, out=sys.stdout) -> int:
         w(f"{report.game_files:,} game files. First run: the game is remembered now, so run pakwatch again after the next update.\n")
     elif report.patched:
         w(f"{report.game_files:,} game files. The game changed since {report.snapshot.taken}; mods compared with that version.\n")
+        build = f" (build {report.build_before} -> {report.build})" if report.build_before and report.build else ""
+        w(f"The update changed {report.files_changed:,} game files, added {report.files_added:,} "
+          f"and removed {report.files_removed:,}{build}.\n")
     else:
         w(f"{report.game_files:,} game files. No update since {report.since}.\n")
     if not report.mods:

@@ -43,6 +43,23 @@ def libraries(root: Path) -> list[Path]:
     return libs
 
 
+def build_id(paks: Path) -> str:
+    """Steam's build id for the game that owns this Paks folder, or "" when it isn't a Steam install."""
+    parts = Path(paks).resolve().parts
+    lower = [p.lower() for p in parts]
+    for i in range(len(parts) - 2, 0, -1):
+        if lower[i] == "common" and lower[i - 1] == "steamapps":
+            apps, installdir = Path(*parts[:i]), lower[i + 1]
+            for acf in apps.glob("appmanifest_*.acf"):
+                text = acf.read_text(encoding="utf-8", errors="replace")
+                folder = re.search(_FIELD.format("installdir"), text)
+                build = re.search(_FIELD.format("buildid"), text)
+                if folder and build and folder.group(1).lower() == installdir:
+                    return build.group(1)
+            return ""
+    return ""
+
+
 @dataclass
 class Game:
     name: str

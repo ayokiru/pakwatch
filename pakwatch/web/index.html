@@ -294,7 +294,11 @@ function render(r, name) {
   const again = document.getElementById("again");
   again.hidden = false;
   again.onclick = () => check(current, name);
+  const u = r.update;
   const facts = el("div", { class: "facts" }, el("span", {}, count(r.game_files, "game file")), el("span", {}, count(r.mods.length, "mod")),
+    r.patched ? el("span", {}, `the update changed ${num(u.changed)}, added ${num(u.added)}, removed ${num(u.removed)}`) : null,
+    r.patched && u.build_before && u.build && u.build_before !== u.build ? el("span", {}, `build ${u.build_before} → ${u.build}`) : null,
+    !r.patched && u.build ? el("span", {}, `build ${u.build}`) : null,
     el("span", { class: "path" }, r.paks));
   const parts = [el("header", { class: "hero" }, symbol(color, sym), el("div", {}, el("h1", {}, title), el("p", {}, text), facts))];
   if (!r.mods.length) parts.push(section("Mods", [], "No mods found. pakwatch counts *_P containers and anything in a subfolder of Paks, such as ~mods."));

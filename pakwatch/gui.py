@@ -33,7 +33,8 @@ def report_json(r: scan.Report, paks: Path) -> dict:
     conflicts = sorted(({"path": short(tocs[0], cid), "mods": [t.path.stem for t in tocs]}
                         for cid, tocs in r.conflicts.items()), key=lambda c: c["path"])
     return {"paks": str(paks), "game_files": r.game_files, "patched": r.patched,
-            "snapshot": r.snapshot.taken if r.snapshot else None, "since": r.since, "first": r.first, "mods": mods, "conflicts": conflicts}
+            "snapshot": r.snapshot.taken if r.snapshot else None, "since": r.since, "first": r.first, "update": {"changed": r.files_changed, "added": r.files_added, "removed": r.files_removed,
+                                          "build_before": r.build_before, "build": r.build}, "mods": mods, "conflicts": conflicts}
 
 
 class Server(ThreadingHTTPServer):

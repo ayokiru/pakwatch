@@ -40,6 +40,18 @@ def game_chunks(tocs: list[Toc]) -> dict[bytes, bytes]:
     return out
 
 
+def find_paks(folder: Path) -> Path:
+    """The game folder, its Content\\Paks, or anything between: UE games keep containers in <Project>/Content/Paks."""
+    folder = Path(folder)
+    if any(folder.glob("*.utoc")):
+        return folder
+    for pattern in ("Content/Paks", "*/Content/Paks"):
+        hits = [p for p in folder.glob(pattern) if any(p.glob("*.utoc"))]
+        if len(hits) == 1:
+            return hits[0]
+    raise FileNotFoundError(f"no IoStore containers (.utoc) in {folder} or its Content\\Paks")
+
+
 # --- snapshots -----------------------------------------------------------------------------------------
 def store_dir(paks_dir: Path) -> Path:
     base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share")) / "pakwatch"
@@ -106,6 +118,8 @@ class Report:
     patched: bool                                          # the game differs from the snapshot
     mods: list[ModReport]
     conflicts: dict[bytes, list[Toc]]                      # file -> mods that all replace it
+    since: str = ""                                        # when this version of the game was first seen (UTC)
+    first: bool = False                                    # no snapshot at all before this run
 
 
 def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | None, fp: str,
@@ -142,6 +156,13 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
     game = game_chunks([read_toc(p) for p in game_paths])
     patch_time = max(p.stat().st_mtime for p in game_paths)
     report = build_report(game, [read_toc(p) for p in mod_paths], baseline(folder, fp), fp, patch_time)
-    if not any(p.stem.endswith("_" + fp) for p in _snaps(folder)):
-        Snapshot(fp, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), game).save(folder)
+    snaps = _snaps(folder)
+    report.first = not snaps
+    mine = [p for p in snaps if p.stem.endswith("_" + fp)]
+    if mine:
+        t = mine[0].stem.rsplit("_", 1)[0]  # 2026-11-04T104512Z, the name can't hold colons
+        report.since = f"{t[:13]}:{t[13:15]}:{t[15:]}"
+    else:
+        report.since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        Snapshot(fp, report.since, game).save(folder)
     return report

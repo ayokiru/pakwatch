@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pakwatch</title>
+<style>
+:root {
+  --bg: #0b1120; --surface: #121a2b; --surface-2: #19233a; --border: #26324d; --border-hi: #3a4a6d;
+  --text: #e6edf7; --muted: #94a3b8; --faint: #64748b;
+  --accent: #34d399; --accent-ink: #052e22;
+  --ok: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #38bdf8;
+  --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, "SF Mono", monospace;
+  --r: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon { width: 18px; height: 18px; flex: none; }
+.mono { font-family: var(--mono); }
+
+header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #0f1729, var(--bg)); }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 19px var(--mono); letter-spacing: -.02em; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.tagline { color: var(--muted); font-size: 13.5px; }
+
+.layout { display: grid; grid-template-columns: 300px 1fr; height: calc(100% - 59px); }
+aside { border-right: 1px solid var(--border); padding: 18px; overflow: auto; }
+main { padding: 22px 28px 40px; overflow: auto; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+
+.game { display: block; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 8px; border-radius: var(--r);
+  background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.game:hover { border-color: var(--border-hi); background: var(--surface-2); }
+.game[aria-current="true"] { border-color: var(--accent); background: rgba(52, 211, 153, .08); }
+.game .n { font-weight: 600; }
+.game .s { color: var(--muted); font-size: 12.5px; }
+.other { margin-top: 18px; }
+.other label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.row { display: flex; gap: 8px; }
+.other input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); font: 13px var(--mono); }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-hi); background: var(--surface-2); cursor: pointer;
+  transition: background .15s; min-height: 40px; }
+.btn:hover { background: #22304d; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { background: #6ee7b7; }
+.muted { color: var(--muted); }
+
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.top h1 { margin: 0; font-size: 22px; }
+.top .path { color: var(--faint); font: 12.5px var(--mono); word-break: break-all; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; }
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font: 600 18px var(--mono); margin-top: 2px; }
+.stat.alert { border-color: var(--warn); }
+.stat.alert .v { color: var(--warn); }
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); background: var(--surface);
+  border: 1px solid var(--border); border-left: 3px solid var(--info); margin-bottom: 22px; color: #cbd5e1; }
+.note .icon { color: var(--info); margin-top: 2px; }
+
+section { margin-bottom: 28px; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 12px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; font-size: 12.5px;
+  font-weight: 600; border: 1px solid currentColor; white-space: nowrap; }
+.badge .icon { width: 15px; height: 15px; }
+.st-ok { color: var(--ok); } .st-touched { color: var(--danger); } .st-updated { color: var(--info); } .st-adds { color: var(--muted); }
+
+details.mod { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 8px; }
+details.mod[open] { border-color: var(--border-hi); }
+details.mod.touched { border-left: 3px solid var(--danger); }
+summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; min-height: 52px; }
+summary::-webkit-details-marker { display: none; }
+summary .chev { margin-left: auto; color: var(--faint); transition: transform .15s; }
+details[open] summary .chev { transform: rotate(90deg); }
+summary .name { font: 600 14.5px var(--mono); word-break: break-all; }
+summary .meta { color: var(--muted); font-size: 13px; }
+.body { padding: 0 14px 14px 14px; border-top: 1px solid var(--border); }
+.body h3 { font-size: 13px; margin: 12px 0 6px; color: var(--muted); font-weight: 600; }
+.files { list-style: none; margin: 0; padding: 0; font: 12.5px/1.7 var(--mono); max-height: 320px; overflow: auto; }
+.files li { word-break: break-all; color: #cbd5e1; }
+.files li.hit { color: var(--danger); }
+.files .tag { display: inline-block; min-width: 64px; color: var(--danger); }
+
+.conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: var(--r); margin-bottom: 8px; }
+.conflict .p { font: 12.5px var(--mono); word-break: break-all; flex: 1 1 320px; }
+.chip { font: 12px var(--mono); padding: 2px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--r); }
+.error { color: var(--danger); border-color: var(--danger); }
+.spinner { width: 22px; height: 22px; border: 2px solid var(--border-hi); border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 760px) { .layout { grid-template-columns: 1fr; height: auto; } aside { border-right: 0; border-bottom: 1px solid var(--border); }
+  .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/><circle cx="12" cy="13" r="2.5" fill="currentColor"/></svg>pakwatch</div>
+  <div class="tagline">which mods the last game update touched</div>
+</header>
+<div class="layout">
+  <aside aria-label="Games">
+    <h2>Games</h2>
+    <div id="games" aria-live="polite"><div class="muted">Looking in your Steam libraries...</div></div>
+    <form class="other" id="other">
+      <label for="folder">Another game folder</label>
+      <div class="row"><input id="folder" class="mono" placeholder="D:\Games\MyGame" spellcheck="false" autocomplete="off"><button class="btn" type="submit">Check</button></div>
+    </form>
+  </aside>
+  <main id="report" aria-live="polite">
+    <div class="empty">Pick a game on the left.</div>
+  </main>
+</div>
+<script>
+"use strict";
+const TOKEN = new URLSearchParams(location.hash.slice(1)).get("t") || "";
+const ICONS = {
+  ok: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+  touched: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  updated: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  adds: '<circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
+};
+const STATUS = {
+  "patch touched": { cls: "touched", label: "Update touched it" },
+  "updated after patch": { cls: "updated", label: "Mod updated" },
+  "ok": { cls: "ok", label: "OK" },
+  "adds only": { cls: "adds", label: "Adds only" },
+};
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) e.append(c);
+  return e;
+}
+function icon(name) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "icon"); s.setAttribute("aria-hidden", "true");
+  s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2");
+  s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+  s.innerHTML = ICONS[name];  // our own constants, never data
+  return s;
+}
+const badge = (status) => { const s = STATUS[status]; return el("span", { class: `badge st-${s.cls}` }, icon(s.cls), s.label); };
+const when = (iso) => iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "";
+const num = (n) => n.toLocaleString("en-US");
+const plural = (n, word) => `${num(n)} ${word}${n === 1 ? "" : "s"}`;
+
+async function api(path) {
+  const r = await fetch(path, { headers: { "X-Pakwatch-Token": TOKEN } });
+  const body = await r.json();
+  if (!r.ok) throw new Error(body.error || r.statusText);
+  return body;
+}
+setInterval(() => api("/api/ping").catch(() => {}), 5000);
+
+let current = null;
+async function loadGames() {
+  const box = document.getElementById("games");
+  let games;
+  try { games = await api("/api/games"); }
+  catch (e) { box.replaceChildren(el("div", { class: "muted" }, "Couldn't read Steam: " + e.message)); return; }
+  if (!games.length) {
+    box.replaceChildren(el("div", { class: "muted" }, "No Unreal Engine games with IoStore files found in Steam. Enter a game folder below."));
+    return;
+  }
+  box.replaceChildren(...games.map((g) => el("button", { class: "game", type: "button", "data-folder": g.folder,
+      onclick: () => check(g.folder, g.name) },
+    el("div", { class: "n" }, g.name), el("div", { class: "s" }, g.mods ? plural(g.mods, "mod") : "no mods"))));
+  check(games[0].folder, games[0].name);
+}
+
+async function check(folder, name) {
+  current = folder;
+  for (const b of document.querySelectorAll(".game")) b.setAttribute("aria-current", String(b.dataset.folder === folder));
+  const main = document.getElementById("report");
+  main.setAttribute("aria-busy", "true");
+  main.replaceChildren(el("div", { class: "empty" }, el("div", { class: "spinner" }), "Reading the game's files..."));
+  try {
+    const r = await api("/api/scan?folder=" + encodeURIComponent(folder));
+    if (current === folder) render(r, name || folder);
+  } catch (e) {
+    if (current === folder) main.replaceChildren(el("div", { class: "empty error" }, e.message));
+  } finally {
+    main.removeAttribute("aria-busy");
+  }
+}
+
+function render(r, name) {
+  const main = document.getElementById("report");
+  const touched = r.mods.filter((m) => m.status === "patch touched").length;
+  const top = el("div", { class: "top" },
+    el("div", {}, el("h1", {}, name), el("div", { class: "path" }, r.paks)),
+    el("button", { class: "btn", type: "button", onclick: () => check(current, name) }, "Check again"));
+  const state = r.first ? "First check" : r.patched ? "Updated" : "No update";
+  const stats = el("div", { class: "stats" },
+    el("div", { class: "stat" }, el("div", { class: "k" }, "Game files"), el("div", { class: "v" }, num(r.game_files))),
+    el("div", { class: `stat${r.patched ? " alert" : ""}` }, el("div", { class: "k" }, "Game since last check"), el("div", { class: "v" }, state)),
+    el("div", { class: `stat${touched ? " alert" : ""}` }, el("div", { class: "k" }, "Mods the update touched"), el("div", { class: "v" }, String(touched))));
+  const note = r.first
+    ? "pakwatch remembered this version of the game. After the next game update, open it again to see which mods the update touched."
+    : r.patched
+      ? `The game changed since ${when(r.snapshot)}. Mods are compared with that version.`
+      : `No game update since ${when(r.since)}. Mods are listed with the game files they replace.`;
+  main.replaceChildren(top, stats, el("div", { class: "note" }, icon("info"), el("div", {}, note)), mods(r.mods), conflicts(r.conflicts));
+}
+
+function mods(list) {
+  const sec = el("section", { "aria-labelledby": "mods-h" }, el("h2", { id: "mods-h" }, `Mods (${list.length})`));
+  if (!list.length) {
+    sec.append(el("div", { class: "empty" }, "No mods found. pakwatch counts *_P containers and anything in a subfolder of Paks, such as ~mods."));
+    return sec;
+  }
+  const counts = {};
+  for (const m of list) counts[m.status] = (counts[m.status] || 0) + 1;
+  sec.append(el("div", { class: "counts" }, Object.keys(STATUS).filter((s) => counts[s]).map((s) => {
+    const b = badge(s); b.append(` ${counts[s]}`); return b;
+  })));
+  for (const m of list) {
+    const meta = [m.where, m.replaced ? `replaces ${plural(m.replaced, "game file")}` : null, m.added ? `adds ${plural(m.added, "file")}` : null]
+      .filter(Boolean).join(" · ");
+    const body = el("div", { class: "body" });
+    if (m.touched.length) {
+      body.append(el("h3", {}, "Changed or removed by the update"),
+        el("ul", { class: "files" }, m.touched.map((f) => el("li", { class: "hit" }, el("span", { class: "tag" }, f.what), f.path))));
+    }
+    if (m.files.length) {
+      const shown = m.files.slice(0, 300);
+      body.append(el("h3", {}, "Game files it replaces"), el("ul", { class: "files" }, shown.map((f) => el("li", {}, f)),
+        m.files.length > shown.length ? el("li", { class: "muted" }, `...and ${m.files.length - shown.length} more`) : null));
+    } else {
+      body.append(el("p", { class: "muted" }, "It only adds files of its own, so a game update can't change what it replaces."));
+    }
+    sec.append(el("details", { class: `mod${m.status === "patch touched" ? " touched" : ""}` },
+      el("summary", {}, badge(m.status), el("div", {}, el("div", { class: "name" }, m.name), el("div", { class: "meta" }, meta)),
+        el("span", { class: "chev" }, icon("chev"))), body));
+  }
+  return sec;
+}
+
+function conflicts(list) {
+  const sec = el("section", { "aria-labelledby": "conf-h" }, el("h2", { id: "conf-h" }, `Files more than one mod replaces (${list.length})`));
+  if (!list.length) {
+    sec.append(el("div", { class: "empty" }, "No two mods replace the same file."));
+    return sec;
+  }
+  sec.append(el("p", { class: "muted" }, "Only one mod's version of each file is used, so the others lose that part."));
+  for (const c of list) sec.append(el("div", { class: "conflict" }, el("span", { class: "p" }, c.path), c.mods.map((m) => el("span", { class: "chip" }, m))));
+  return sec;
+}
+
+document.getElementById("other").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = document.getElementById("folder").value.trim();
+  if (v) check(v, v.split(/[\\/]/).filter(Boolean).pop());
+});
+loadGames();
+</script>
+</body>
+</html>

@@ -14,12 +14,17 @@ Unreal Engine 5 games keep their files in IoStore containers (`.utoc` + `.ucas`)
   zzz_Shields_P: ok, replaces 2 game files, adds 0
 ```
 
+Run `pakwatch` without a folder and it opens in your browser instead. It finds the Unreal Engine games in your Steam libraries, and any other game folder works too.
+
+<img src="docs/window.png" alt="pakwatch in the browser: a test game after an update, two mods flagged because the update changed files they replace, one mod updated since, and one file that two mods both replace" width="100%">
+
 ## How it works
 
 - The first run remembers every game file by its content hash, a few MB in `%LOCALAPPDATA%\pakwatch`. Run it once while your mods work.
 - After an update, the next run compares the game with that snapshot and flags each mod that replaces a file the update changed or removed. A mod written after the update shows as "updated after patch", because its author has probably caught up.
 - pakwatch reads only the container tables. It never opens the `.ucas` data, needs no AES key and changes nothing. A whole game takes about a second.
 - Mods are `*_P` containers and anything in a subfolder of `Paks`, such as `~mods`.
+- The window is a page served on 127.0.0.1 with a one-time key, so other sites in the browser can't use it. It stops shortly after you close the tab.
 
 The exit code is 1 when the update touched a mod or two mods collide, so pakwatch can run in scripts.
 
@@ -27,7 +32,8 @@ The exit code is 1 when the update touched a mod or two mods collide, so pakwatc
 
 ```
 pip install git+https://github.com/ayokiru/pakwatch
-pakwatch <game folder>
+pakwatch                  # opens in your browser
+pakwatch <game folder>    # prints the report
 ```
 
 Needs Python 3.11 or newer and nothing else.

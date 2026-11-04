@@ -9,30 +9,18 @@ from . import scan
 from .utoc import Toc
 
 
-def find_paks(folder: Path) -> Path:
-    """The game folder, its Content\\Paks, or anything between: UE games keep containers in <Project>/Content/Paks."""
-    folder = Path(folder)
-    if any(folder.glob("*.utoc")):
-        return folder
-    for pattern in ("Content/Paks", "*/Content/Paks"):
-        hits = [p for p in folder.glob(pattern) if any(p.glob("*.utoc"))]
-        if len(hits) == 1:
-            return hits[0]
-    raise FileNotFoundError(f"no IoStore containers (.utoc) in {folder} or its Content\\Paks")
-
-
 def short(toc: Toc, cid: bytes) -> str:
     return toc.name_of(cid).replace("../../../", "")
 
 
 def show(report: scan.Report, out=sys.stdout) -> int:
     w = out.write
-    if report.snapshot is None:
+    if report.first:
         w(f"{report.game_files:,} game files. First run: the game is remembered now, so run pakwatch again after the next update.\n")
     elif report.patched:
         w(f"{report.game_files:,} game files. The game changed since {report.snapshot.taken}; mods compared with that version.\n")
     else:
-        w(f"{report.game_files:,} game files. No update since {report.snapshot.taken}.\n")
+        w(f"{report.game_files:,} game files. No update since {report.since}.\n")
     if not report.mods:
         w("No mods found (*_P containers or anything in a subfolder such as ~mods).\n")
     trouble = 0
@@ -54,10 +42,15 @@ def show(report: scan.Report, out=sys.stdout) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="pakwatch", description=__doc__.split(": ", 1)[1])
-    ap.add_argument("game", type=Path, help="the game's install folder (or its Content\\Paks)")
+    ap.add_argument("game", type=Path, nargs="?",
+                    help="the game's install folder (or its Content\\Paks); without it pakwatch opens in your browser")
     args = ap.parse_args(argv)
+    if args.game is None:
+        from . import gui
+        gui.run()
+        return 0
     try:
-        report = scan.run(find_paks(args.game))
+        report = scan.run(scan.find_paks(args.game))
     except (FileNotFoundError, ValueError) as e:
         print(f"pakwatch: {e}", file=sys.stderr)
         return 2

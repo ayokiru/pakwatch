@@ -11,3 +11,6 @@ pakwatch = "pakwatch.__main__:main"
 
 [tool.setuptools]
 packages = ["pakwatch"]
+
+[tool.setuptools.package-data]
+pakwatch = ["web/*"]

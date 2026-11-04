@@ -36,7 +36,10 @@ class PatchFlowTests(unittest.TestCase):
     def test_first_run_takes_a_snapshot(self):
         r = scan.run(self.paks, self.store)
         self.assertFalse(r.patched)
+        self.assertTrue(r.first)
         self.assertEqual(r.game_files, 3)
+        again = scan.run(self.paks, self.store)  # same game version: not a first run, and the date is kept
+        self.assertEqual((again.first, again.patched, again.since), (False, False, r.since))
         self.assertEqual(self.status(r), {"zzz_Shields_P.utoc": "ok", "zzz_Swords_P.utoc": "ok"})
         self.assertEqual(len(list(self.store.glob("*.snap"))), 1)
 
@@ -76,7 +79,7 @@ class PatchFlowTests(unittest.TestCase):
         self.assertIn("changed: package", out.getvalue())
 
     def test_find_paks(self):
-        from pakwatch.__main__ import find_paks
+        from pakwatch.scan import find_paks
         game = Path(self.tmp.name) / "Game"
         write(game / "Proj" / "Content" / "Paks" / "a.utoc", {SWORD: b"a" * 20}, self.t0)
         self.assertEqual(find_paks(game), game / "Proj" / "Content" / "Paks")

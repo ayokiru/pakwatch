@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from . import __version__, scan
@@ -13,36 +14,57 @@ def short(toc: Toc, cid: bytes) -> str:
     return toc.name_of(cid).replace("../../../", "")
 
 
+GROUPS = [("patch touched", "Needs a look", "!"), ("updated after patch", "Updated by their authors", "+"),
+          ("ok", "Fine", " "), ("adds only", "Only add files", " ")]
+
+
+def files(n: int) -> str:
+    return f"{n:,} game file" + ("" if n == 1 else "s")
+
+
+def date(iso: str) -> str:
+    return datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").strftime("%d %b %Y, %H:%M UTC").lstrip("0")
+
+
+def update_line(r: scan.Report) -> str:
+    parts = [f"{w} {files(n) if i == 0 else f'{n:,}'}" for i, (w, n) in
+             enumerate((("changed", r.files_changed), ("added", r.files_added), ("removed", r.files_removed))) if n]
+    build = f" (build {r.build_before} -> {r.build})" if r.build_before and r.build else ""
+    return f"The update {', '.join(parts) or 'changed no files'}{build}."
+
+
 def show(report: scan.Report, out=sys.stdout) -> int:
     w = out.write
     if report.first:
-        w(f"{report.game_files:,} game files. First run: the game is remembered now, so run pakwatch again after the next update.\n")
+        w(f"{files(report.game_files)}. First check: pakwatch remembers this version, run it again after the next update.\n")
     elif report.patched:
-        w(f"{report.game_files:,} game files. The game changed since {report.snapshot.taken}; mods compared with that version.\n")
-        build = f" (build {report.build_before} -> {report.build})" if report.build_before and report.build else ""
-        w(f"The update changed {report.files_changed:,} game file{'' if report.files_changed == 1 else 's'}, added {report.files_added:,} "
-          f"and removed {report.files_removed:,}{build}.\n")
+        w(f"{files(report.game_files)}. The game updated after {date(report.snapshot.taken)}. {update_line(report)}\n")
     else:
-        w(f"{report.game_files:,} game files. No update since {report.since}.\n")
+        w(f"{files(report.game_files)}. No update since {date(report.since)}.\n")
     if not report.mods:
-        w("No mods found (*_P containers or anything in a subfolder such as ~mods).\n")
-    trouble = 0
-    for m in report.mods:
-        name = m.toc.path.stem
-        w(f"\n{'!' if m.status == 'patch touched' else ' '} {name}: {m.status}, replaces {len(m.replaced)} game files, adds {m.added}\n")
-        hit = [(c, "changed") for c in m.changed] + [(c, "removed") for c in m.removed]
-        trouble += m.status == "patch touched"
-        for cid, what in hit[:20]:
-            w(f"    {what}: {short(m.toc, cid)}\n")
-        if len(hit) > 20:
-            w(f"    ...and {len(hit) - 20} more\n")
-    for name, why in report.unreadable:
-        w(f"\n? {name}: couldn't read it ({why})\n")
+        w("\nNo mods found (*_P containers or anything in a subfolder of Paks, such as ~mods).\n")
+    for status, title, mark in GROUPS:
+        mods = sorted((m for m in report.mods if m.status == status), key=lambda m: m.toc.path.stem.lower())
+        if mods:
+            w(f"\n{title}\n")
+        for m in mods:
+            detail = [f"replaces {files(len(m.replaced))}" if m.replaced else "", f"adds {m.added:,}" if m.added else ""]
+            w(f"{mark} {m.toc.path.stem}  {', '.join(d for d in detail if d)}\n")
+            hit = [(c, "changed") for c in m.changed] + [(c, "removed") for c in m.removed]
+            for cid, what in hit[:20]:
+                w(f"    {what}  {short(m.toc, cid)}\n")
+            if len(hit) > 20:
+                w(f"    and {len(hit) - 20} more\n")
+    if report.unreadable:
+        w("\nCouldn't read\n")
+        for name, why in report.unreadable:
+            w(f"? {name}  {why}\n")
     if report.conflicts:
-        w(f"\nFiles replaced by more than one mod (only one of them wins):\n")
+        w("\nReplaced by more than one mod (the game loads one version)\n")
         for cid, tocs in sorted(report.conflicts.items(), key=lambda kv: short(kv[1][0], kv[0])):
-            w(f"  {short(tocs[0], cid)}: {', '.join(t.path.stem for t in tocs)}\n")
-    return 1 if trouble or report.conflicts else 0
+            w(f"  {short(tocs[0], cid)}  {', '.join(t.path.stem for t in tocs)}\n")
+    touched = any(m.status == "patch touched" for m in report.mods)
+    return 1 if touched or report.conflicts else 0
 
 
 def main(argv: list[str] | None = None) -> int:

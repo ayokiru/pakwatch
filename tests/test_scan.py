@@ -75,8 +75,8 @@ class PatchFlowTests(unittest.TestCase):
         out = io.StringIO()
         code = cli.show(scan.run(self.paks, self.store), out)
         self.assertEqual(code, 1)
-        self.assertIn("! zzz_Swords_P: patch touched, replaces 1 game files, adds 1", out.getvalue())
-        self.assertIn("changed: package", out.getvalue())
+        self.assertIn("Needs a look\n! zzz_Swords_P  replaces 1 game file, adds 1\n    changed  package", out.getvalue())
+        self.assertIn("The update changed 1 game file, removed 1.", out.getvalue())  # no "added 0"
 
     def test_find_paks(self):
         from pakwatch.scan import find_paks

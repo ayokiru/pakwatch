@@ -20,8 +20,9 @@ def render(r: dict, name: str) -> str:
         out.append(f"First check, nothing to compare with yet. {_files(r['game_files'])}, {len(r['mods'])} mods.")
     elif r["patched"]:
         build = f" (build {u['build_before']} → {u['build']})" if u["build_before"] and u["build"] else ""
-        out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update changed {_files(u['changed'])}, "
-                   f"added {u['added']:,} and removed {u['removed']:,}.")
+        parts = [f"{w} {_files(n) if i == 0 else f'{n:,}'}" for i, (w, n) in
+                 enumerate((("changed", u["changed"]), ("added", u["added"]), ("removed", u["removed"]))) if n]
+        out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update {', '.join(parts) or 'changed no files'}.")
     else:
         out.append(f"No game update since {_date(r['since'])}" + (f" (build {u['build']})." if u["build"] else "."))
     groups = [("patch touched", "Needs a look"), ("updated after patch", "Updated by their authors"),
@@ -33,7 +34,10 @@ def render(r: dict, name: str) -> str:
         out += ["", f"**{title}**"]
         for m in mods:
             if status == "patch touched":
-                out.append(f"- `{m['name']}`: the update changed {len(m['touched'])} of the {_files(m['replaced'])} it replaces")
+                t, n = len(m["touched"]), m["replaced"]
+                what = (f"{t} of the {_files(n)}" if t < n else "the game file" if t == 1
+                        else "both game files" if t == 2 else f"all {_files(t)}")
+                out.append(f"- `{m['name']}`: the update changed {what} it replaces")
                 out += [f"  - {f['what']} `{f['path']}`" for f in m["touched"]]
             else:
                 out.append(f"- `{m['name']}`")

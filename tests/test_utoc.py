@@ -19,27 +19,30 @@ def chunk_id(n: int, kind: int) -> bytes:
 
 
 def build_toc(ids: list[bytes], hashes: list[bytes], files: dict[int, str], flags: int = utoc.INDEXED,
-              seeds: int = 0) -> bytes:
+              seeds: int = 0, mount: str = "../../../Game/") -> bytes:
     """A version 8 .utoc in the layout UE writes: header, ids, offsets, seeds, one compression block,
-    one method name, directory index, metas. Files are 'dir/name' pairs under the mount point."""
-    strings, dirs, file_entries = [], [], []
+    one method name, directory index, metas. Files are paths (any depth) under the mount point."""
+    strings, file_entries = [], []
+    none = 0xFFFFFFFF
+    dirs = [[none, none, none, none]]  # root: name, first child, next sibling, first file
+    children: dict[tuple[int, str], int] = {}
 
     def sid(s):
         if s not in strings:
             strings.append(s)
         return strings.index(s)
 
-    none = 0xFFFFFFFF
-    folders = sorted({p.split("/")[0] for p in files.values()})
-    dirs.append([none, 1 if folders else none, none, none])  # root
-    for i, folder in enumerate(folders):
-        dirs.append([sid(folder), none, len(dirs) + 1 if i < len(folders) - 1 else none, none])
     for index, p in files.items():
-        folder, name = p.split("/")
-        d = dirs[1 + folders.index(folder)]
-        file_entries.append([sid(name), d[3], index])
-        d[3] = len(file_entries) - 1
-    index_buf = (fstring("../../../Game/") + struct.pack("<I", len(dirs)) + b"".join(struct.pack("<IIII", *d) for d in dirs)
+        *folders, name = p.split("/")
+        d = 0
+        for f in folders:
+            if (d, f) not in children:
+                dirs.append([sid(f), none, dirs[d][1], none])  # becomes the parent's first child
+                dirs[d][1] = children[(d, f)] = len(dirs) - 1
+            d = children[(d, f)]
+        file_entries.append([sid(name), dirs[d][3], index])
+        dirs[d][3] = len(file_entries) - 1
+    index_buf = (fstring(mount) + struct.pack("<I", len(dirs)) + b"".join(struct.pack("<IIII", *d) for d in dirs)
                  + struct.pack("<I", len(file_entries)) + b"".join(struct.pack("<III", *f) for f in file_entries)
                  + struct.pack("<I", len(strings)) + b"".join(fstring(s) for s in strings))
     n = len(ids)

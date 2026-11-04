@@ -63,10 +63,10 @@ def main():
     code, out, err = run("--version")
     check("--version", code == 0 and "pakwatch" in out, out.strip() or err.strip())
     code, out, err = run(GAME)
-    check("first check of a game under a Cyrillic path", code == 0 and "First run" in out, out.strip()[:120] or err[-300:])
+    check("first check of a game under a Cyrillic path", code == 0 and "First check" in out, out.strip()[:120] or err[-300:])
     utoc(PAKS / "Demo-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20}, {}, t0 + 100)  # the "update"
     code, out, err = run(GAME)
-    check("after the update: mod flagged, exit code 1", code == 1 and "patch touched" in out and "zzz_Swords_P" in out, out.strip()[:200])
+    check("after the update: mod flagged, exit code 1", code == 1 and "Needs a look" in out and "zzz_Swords_P" in out, out.strip()[:200])
     check(".pak mod read", "zzz_Config_P" in out, "")
     code, md, err = run(GAME, "--markdown")
     check("--markdown", "**Needs a look**" in md and "Demo Game" in md, md[:120])

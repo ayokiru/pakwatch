@@ -16,7 +16,10 @@ Unreal Engine 5 games keep their files in IoStore containers (`.utoc` + `.ucas`)
 
 Run `pakwatch` without a folder and it opens in your browser instead. It finds the Unreal Engine games in your Steam libraries, and any other game folder works too.
 
-<img src="docs/window.png" alt="pakwatch in the browser: a test game after an update, two mods flagged because the update changed files they replace, one mod updated since, and one file that two mods both replace" width="100%">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/window-dark.png">
+  <img src="docs/window-light.png" alt="pakwatch in the browser: a test game after an update, two mods that need a look because the update changed files they replace, and the other mods grouped by what the update did to them" width="100%">
+</picture>
 
 ## How it works
 

@@ -143,6 +143,25 @@ class PatchFlowTests(unittest.TestCase):
         r = scan.run(self.paks, self.store)
         self.assertEqual((r.files_changed, r.files_added, r.files_removed), (1, 1, 1))  # sword, the new file, the bow
 
+    def test_a_damaged_snapshot_is_skipped(self):  # a power cut while pakwatch 0.1 wrote one
+        import io
+        from contextlib import redirect_stderr
+        scan.run(self.paks, self.store)
+        first = next(self.store.glob("*.snap"))
+        first.rename(first.with_name("2026-01-01T000000Z_" + first.name.split("_", 1)[1]))  # older than the next one
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20}, self.t0 + 100)
+        scan.run(self.paks, self.store)
+        newest = sorted(self.store.glob("*.snap"))[-1]
+        newest.write_bytes(newest.read_bytes()[:30])
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"B" * 20, SHIELD: b"b" * 20}, self.t0 + 200)
+        err = io.StringIO()
+        with redirect_stderr(err):
+            r = scan.run(self.paks, self.store)
+        self.assertTrue(r.patched)  # compared with the first snapshot instead
+        self.assertEqual(r.files_changed, 1)
+        self.assertIn("damaged snapshot", err.getvalue())
+        self.assertEqual(list(self.store.glob("*.tmp")), [])
+
     def test_snapshot_round_trip(self):
         snap = scan.Snapshot("abc", "2026-11-04T10:00:00Z", {SWORD: b"a" * 20, BOW: b"c" * 20}, "26266538")
         back = scan.Snapshot.load(snap.save(self.store))

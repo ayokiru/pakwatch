@@ -62,6 +62,13 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(state["hung"], "1")  # not remembered, so the next look tries again
         self.assertNotEqual(state["fine"], "1")
 
+    def test_an_empty_state_file_means_starting_over(self):
+        path = Path(self.tmp.name) / "watch.json"
+        path.write_text("")
+        self.assertEqual(watch.load_state(path), {})
+        scan.write_atomic(path, b'{"a": "1"}')
+        self.assertEqual(watch.load_state(path), {"a": "1"})
+
     def test_summary(self):
         r = scan.run(self.paks)
         self.assertEqual(watch.summary(r), "Your 1 mod looks fine after the update.")

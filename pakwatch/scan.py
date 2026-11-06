@@ -6,6 +6,8 @@ import gzip
 import hashlib
 import os
 import struct
+import sys
+import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,8 +95,7 @@ class Snapshot:
         path = folder / f"{self.taken.replace(':', '')}_{self.fingerprint}.snap"
         body = b"".join(c + h for c, h in sorted(self.chunks.items()))
         head = " ".join(filter(None, ("pakwatch1", self.fingerprint, self.taken, self.build, self.exe and "exe=" + self.exe)))
-        with gzip.open(path, "wb") as f:
-            f.write(head.encode() + b"\n" + body)
+        write_atomic(path, gzip.compress(head.encode() + b"\n" + body))
         return path
 
     @staticmethod
@@ -117,8 +118,20 @@ def _snaps(folder: Path) -> list[Path]:
 def baseline(folder: Path, fp: str) -> Snapshot | None:
     """The newest snapshot of an earlier game version: the report keeps showing what the last patch changed
     on every run until the next patch, not only on the first run after it."""
-    older = [p for p in _snaps(folder) if not p.stem.endswith("_" + fp)]
-    return Snapshot.load(older[-1]) if older else None
+    for path in reversed([p for p in _snaps(folder) if not p.stem.endswith("_" + fp)]):
+        try:
+            return Snapshot.load(path)
+        except (OSError, EOFError, ValueError, zlib.error):  # cut short or damaged: the one before it will do
+            if sys.stderr:
+                print(f"pakwatch: skipping the damaged snapshot {path.name}", file=sys.stderr)
+    return None
+
+
+def write_atomic(path: Path, data: bytes) -> None:
+    """A power cut while writing leaves the old file or the new one, never half of one."""
+    tmp = path.with_suffix(".tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, path)
 
 
 # --- report --------------------------------------------------------------------------------------------

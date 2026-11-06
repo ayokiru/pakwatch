@@ -57,6 +57,15 @@ def state_file() -> Path:
     return scan.store_root() / "watch.json"
 
 
+def load_state(path: Path) -> dict:
+    """The build ids of the last look; a missing or damaged file just means starting over."""
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
 def check(games: list[steam.Game], state: dict[str, str], notify=toast) -> dict[str, str]:
     """One look at every game: a game whose build id changed since the last look is checked and announced.
     A game seen for the first time is only remembered (pakwatch takes its first snapshot then)."""
@@ -98,7 +107,7 @@ def single_instance(lock: Path):
 def run(interval: int = INTERVAL, dry_run: bool = False) -> None:
     """Look every few minutes. A dry run looks once, prints instead of notifying and remembers nothing."""
     path = state_file()
-    state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    state = load_state(path)
     # a second logon or a manual start would otherwise give every notification twice
     lock = None if dry_run else single_instance(path.with_name("watch.lock"))
     if not dry_run and lock is None:
@@ -114,7 +123,7 @@ def run(interval: int = INTERVAL, dry_run: bool = False) -> None:
             new = check([g for g in steam.games() if g.mods], state)
             if new != state:
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(json.dumps(new, indent=1), encoding="utf-8")
+                scan.write_atomic(path, json.dumps(new, indent=1).encode("utf-8"))
                 state = new
         except Exception:  # Steam's files half written, a full disk: keep the state and look again later
             pass

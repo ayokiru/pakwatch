@@ -74,9 +74,10 @@ def load_state(path: Path) -> dict:
     return state if isinstance(state, dict) else {}
 
 
-def check(games: list[steam.Game], state: dict[str, str], notify=toast) -> dict[str, str]:
-    """One look at every game: a game whose build id changed since the last look is checked and announced.
-    A game seen for the first time is only remembered (pakwatch takes its first snapshot then)."""
+def check(games: list[steam.Game], state: dict[str, dict], notify=toast) -> dict[str, dict]:
+    """One look at every game: a game whose build id changed since the last look is checked, and announced when
+    its containers changed too. A game seen for the first time is only remembered (pakwatch takes its first
+    snapshot then). The state keeps each game's build id and the fingerprint of its containers."""
     state = dict(state)
     for g in games:
         try:
@@ -84,14 +85,17 @@ def check(games: list[steam.Game], state: dict[str, str], notify=toast) -> dict[
             build, key = fields.get("buildid", ""), str(g.paks).lower()
             if not build or fields.get("StateFlags", "4") != "4":  # 4: fully installed, not halfway through an update
                 continue
-            if state.get(key) == build:
+            last = state.get(key)
+            last = last if isinstance(last, dict) else {"build": last}  # an older watch.json kept the build id alone
+            if last["build"] == build:
                 continue
             report = scan.run(g.paks)
-            if key in state and report.patched:
+            # a build that changed no container leaves the last update's report as it was: don't announce it again
+            if key in state and report.patched and report.fingerprint != last.get("containers"):
                 notify(f"{g.name} updated", summary(report))
         except Exception:  # a broken file or a hung notification must not stop the watcher; the next look retries
             continue
-        state[key] = build
+        state[key] = {"build": build, "containers": report.fingerprint}
     return state
 
 

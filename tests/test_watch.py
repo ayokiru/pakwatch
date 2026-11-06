@@ -37,7 +37,7 @@ class WatchTests(unittest.TestCase):
 
     def test_announces_an_update_once(self):
         state = self.look({})
-        self.assertEqual((list(state.values()), self.toasts), (["100"], []))  # first look: only remembered
+        self.assertEqual(([v["build"] for v in state.values()], self.toasts), (["100"], []))  # only remembered
         self.assertEqual(self.look(state), state)
         write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20}, self.t0 + 100)
         self.manifest("101", flags="1026")  # Steam is still writing the update
@@ -46,12 +46,22 @@ class WatchTests(unittest.TestCase):
         state = self.look(state)
         self.assertEqual(self.toasts, [("Game updated", "1 mod needs a look. Open pakwatch for the details.")])
         self.look(state)
+        self.manifest("102")  # a Steam update that touched no container: the report above stays, no new toast
+        state = self.look(state)
+        self.assertEqual([v["build"] for v in state.values()], ["102"])
+        self.assertEqual(len(self.toasts), 1)
+
+    def test_watch_json_from_before_keeps_working(self):
+        self.look({})
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20}, self.t0 + 100)
+        self.manifest("101")
+        self.look({str(self.paks).lower(): "100"})
         self.assertEqual(len(self.toasts), 1)
 
     def test_a_failing_game_doesnt_stop_the_others(self):
         import subprocess
         games = [steam.Game(n, Path(n), Path(n), 1) for n in ("Hung", "Fine")]
-        report = mock.Mock(patched=True, since="2026-11-06T10:00:00Z", mods=[], exe_changed=False, ue4ss=None)
+        report = mock.Mock(patched=True, fingerprint="f2", mods=[], exe_changed=False, ue4ss=None)
 
         def notify(title, body):
             if title.startswith("Hung"):
@@ -60,7 +70,7 @@ class WatchTests(unittest.TestCase):
                 mock.patch.object(scan, "run", return_value=report):
             state = watch.check(games, {"hung": "1", "fine": "1"}, notify=notify)
         self.assertEqual(state["hung"], "1")  # not remembered, so the next look tries again
-        self.assertNotEqual(state["fine"], "1")
+        self.assertEqual(state["fine"], {"build": "2", "containers": "f2"})
 
     def test_an_empty_state_file_means_starting_over(self):
         path = Path(self.tmp.name) / "watch.json"

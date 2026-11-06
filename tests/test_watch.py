@@ -88,16 +88,11 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Would create", out.getvalue())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SingleInstanceTests(unittest.TestCase):
     def test_second_watcher_gets_no_lock(self):
-        import tempfile
-        from pathlib import Path
-        from pakwatch import watch
-        lock = Path(tempfile.mkdtemp()) / "watch.lock"
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        lock = Path(tmp.name) / "watch.lock"
         first = watch.single_instance(lock)
         self.assertIsNotNone(first)
         self.assertIsNone(watch.single_instance(lock))
@@ -105,3 +100,7 @@ class SingleInstanceTests(unittest.TestCase):
         again = watch.single_instance(lock)
         self.assertIsNotNone(again)
         again.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

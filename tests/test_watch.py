@@ -74,6 +74,15 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(watch.summary(r), "Your 1 mod looks fine after the update.")
         with mock.patch.object(scan.ModReport, "status", new_callable=mock.PropertyMock, return_value="uses changed"):
             self.assertEqual(watch.summary(r), "1 mod uses changed game files. Open pakwatch for the details.")
+        r.exe_changed, r.ue4ss = True, {"version": "3.0.1", "mods": []}
+        self.assertEqual(watch.summary(r), "Your 1 mod looks fine after the update. "
+                                           "The exe changed too, so check your UE4SS script mods.")
+
+    def test_games_with_only_ue4ss_are_watched(self):
+        games = [steam.Game("Paks only", Path("a"), Path("a"), 0), steam.Game("Script mods", Path("b"), Path("b"), 0),
+                 steam.Game("Pak mods", Path("c"), Path("c"), 2)]
+        with mock.patch.object(steam, "games", return_value=games),                 mock.patch.object(watch.ue4ss, "find", side_effect=lambda paks: {"mods": []} if paks == Path("b") else None):
+            self.assertEqual([g.name for g in watch.watched()], ["Script mods", "Pak mods"])
 
     def test_toast_text_stays_out_of_the_script(self):
         calls = []

@@ -84,7 +84,7 @@ def show(report: scan.Report, out=sys.stdout) -> int:
 
 def watch_main(argv: list[str]) -> int:
     from . import watch
-    ap = argparse.ArgumentParser(prog="pakwatch watch", description="Check your Steam games with mods after every "
+    ap = argparse.ArgumentParser(prog="pakwatch watch", description="Check your Steam games with mods or UE4SS after every "
                                  "Steam update and show the result in a Windows notification.")
     which = ap.add_mutually_exclusive_group()
     which.add_argument("--install", action="store_true", help="start pakwatch watch at every logon (a Startup shortcut)")

@@ -1,4 +1,4 @@
-"""pakwatch watch: check the Steam games with mods again whenever Steam finishes an update (the build id in the
+"""pakwatch watch: check the Steam games with mods or UE4SS again whenever Steam finishes an update (the build id in the
 app manifest changes), and say the result in a Windows notification. Opt in with `pakwatch watch --install`, which
 puts a shortcut in the user's Startup folder; `--uninstall` removes it."""
 from __future__ import annotations
@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import scan, steam
+from . import scan, steam, ue4ss
 
 INTERVAL = 600  # seconds between looks at the app manifests
 SHORTCUT = "pakwatch watch.lnk"
@@ -48,9 +48,17 @@ def summary(report: scan.Report) -> str:
     parts = [f"{need} mod{'s need' if need != 1 else ' needs'} a look"] if need else []
     if uses:
         parts.append(f"{uses} mod{'s use' if uses != 1 else ' uses'} changed game files")
-    if not parts:
-        return f"Your {len(report.mods)} mod{'s look' if len(report.mods) != 1 else ' looks'} fine after the update."
-    return " and ".join(parts) + ". Open pakwatch for the details."
+    n = len(report.mods)
+    text = (" and ".join(parts) + ". Open pakwatch for the details." if parts
+            else f"Your {n} mod{'s look' if n != 1 else ' looks'} fine after the update." if n else "")
+    if report.exe_changed and report.ue4ss:
+        text = (text + " " if text else "") + "The exe changed too, so check your UE4SS script mods."
+    return text or "None of your mods are affected."
+
+
+def watched() -> list[steam.Game]:
+    """Steam games with pak mods or UE4SS."""
+    return [g for g in steam.games() if g.mods or ue4ss.find(g.paks)]
 
 
 def state_file() -> Path:
@@ -115,12 +123,12 @@ def run(interval: int = INTERVAL, dry_run: bool = False) -> None:
         return
     while True:
         if dry_run:
-            games = [g for g in steam.games() if g.mods]
+            games = watched()
             check(games, state, notify=lambda title, body: print(f"{title}: {body}"))
-            print(f"Looked at {len(games)} Steam game{'s' if len(games) != 1 else ''} with mods.")
+            print(f"Looked at {len(games)} Steam game{'s' if len(games) != 1 else ''} with mods or UE4SS.")
             return
         try:
-            new = check([g for g in steam.games() if g.mods], state)
+            new = check(watched(), state)
             if new != state:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 scan.write_atomic(path, json.dumps(new, indent=1).encode("utf-8"))

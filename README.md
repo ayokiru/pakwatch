@@ -108,7 +108,7 @@ The exit code is 0 when everything is fine, 1 when the update touched a mod (Nee
 pakwatch watch --install
 ```
 
-This adds a shortcut to your Windows Startup folder, so `pakwatch watch` starts every time you log in. It looks at your Steam games with mods every ten minutes. When Steam has finished an update (the game's build id changed), pakwatch checks the game and shows a Windows notification with the game's name and a short result, such as "1 mod needs a look". Open pakwatch for the full report.
+This adds a shortcut to your Windows Startup folder, so `pakwatch watch` starts every time you log in. It looks at your Steam games with mods or UE4SS every ten minutes. When Steam has finished an update (the game's build id changed), pakwatch checks the game and shows a Windows notification with the game's name and a short result, such as "1 mod needs a look". Open pakwatch for the full report.
 
 `pakwatch watch --uninstall` removes the shortcut. Add `--dry-run` to either command to see what it would do without changing anything. `pakwatch watch` on its own runs the watcher in the console until you close it, and `pakwatch watch --dry-run` checks once and prints instead of showing a notification. With `pakwatch.exe` the watcher runs in a minimized window; installed with pip it runs without one.
 

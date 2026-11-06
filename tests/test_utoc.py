@@ -174,6 +174,25 @@ class TocTests(unittest.TestCase):
         with self.assertRaisesRegex(utoc.TocError, "encrypted"):
             utoc.imports(self.mod(flags=utoc.INDEXED | utoc.ENCRYPTED))
 
+    def test_oodle_loads_a_copy_so_steam_can_replace_the_games_dll(self):
+        from unittest import mock
+        from pakwatch import scan
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        game, store = Path(tmp.name) / "Win64", Path(tmp.name) / "store"
+        game.mkdir()
+        (game / "oo2core_9_win64.dll").write_bytes(b"MZ oodle")
+        loaded = []
+
+        def cdll(path):
+            loaded.append(Path(path))
+            return mock.Mock(OodleLZ_Decompress=mock.Mock(return_value=4))
+        with mock.patch.object(scan, "store_root", return_value=store), mock.patch.object(utoc.ctypes, "CDLL", cdll):
+            self.assertEqual(utoc._oodle_decompress(b"packed", 4, (game,)), b"\0" * 4)
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0].parent, store / "oodle")
+        self.assertEqual(loaded[0].read_bytes(), b"MZ oodle")
+
     @unittest.skipUnless(GAME_PAKS.is_dir(), "no installed game to read")
     def test_real_containers(self):
         tocs = [utoc.read_toc(p) for p in sorted(GAME_PAKS.glob("*.utoc"))]

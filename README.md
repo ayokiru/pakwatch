@@ -128,7 +128,7 @@ If the game has UE4SS, the report shows its version and the script mods in its `
 
 ## Privacy and safety
 
-pakwatch never changes the game's files on its own. Turn Off and Turn On move one mod's files between the game's `Paks` folder and `%LOCALAPPDATA%\pakwatch`, and never delete or overwrite anything. `pakwatch watch --install` and `--uninstall` add or remove one shortcut in your Startup folder. The watcher keeps the last Steam build id of each game in `%LOCALAPPDATA%\pakwatch\watch.json`. When a mod's container header is packed with Oodle, pakwatch loads the game's own Oodle DLL to unpack it. pakwatch never connects to the internet. The window is a page served on 127.0.0.1 with a one-time key, so other sites open in your browser can't use it, and it shuts down shortly after you close the tab.
+pakwatch never changes the game's files on its own. Turn Off and Turn On move one mod's files between the game's `Paks` folder and `%LOCALAPPDATA%\pakwatch`, and never delete or overwrite anything. `pakwatch watch --install` and `--uninstall` add or remove one shortcut in your Startup folder. The watcher keeps the last Steam build id of each game in `%LOCALAPPDATA%\pakwatch\watch.json`. When a mod's container header is packed with Oodle, pakwatch copies the game's own Oodle DLL to `%LOCALAPPDATA%\pakwatch\oodle` and loads the copy, so the game's file stays free for Steam updates. pakwatch never connects to the internet. The window is a page served on 127.0.0.1 with a one-time key, so other sites open in your browser can't use it, and it shuts down shortly after you close the tab.
 
 ## Limits
 

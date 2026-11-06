@@ -150,14 +150,26 @@ def read_toc(path: Path) -> Toc:
 _oodle: dict[tuple, object] = {}
 
 
+def _private_copy(dll: Path) -> Path:
+    """A copy of the DLL in pakwatch's folder. Windows locks a loaded DLL, and the watcher stays loaded for the whole
+    session, so loading the game's own file would make a Steam update that replaces it fail."""
+    from .scan import store_root, write_atomic  # scan imports this module
+    st = dll.stat()
+    copy = store_root() / "oodle" / f"{st.st_size}-{st.st_mtime_ns}-{dll.name}"  # a new game version, a new copy
+    if not copy.is_file():
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(copy, dll.read_bytes())
+    return copy
+
+
 def _oodle_decompress(raw: bytes, size: int, dirs: tuple) -> bytes:
     """Oodle through the game's own oo2core DLL, if the game ships one. pakwatch doesn't carry Oodle itself."""
     if dirs not in _oodle:
         _oodle[dirs] = None
         for dll in (p for d in dirs for p in sorted(Path(d).glob("oo2core_*_win64.dll"))):
             try:
-                fn = ctypes.CDLL(str(dll)).OodleLZ_Decompress
-            except (OSError, AttributeError):  # wrong bitness, not Windows, or not Oodle after all
+                fn = ctypes.CDLL(str(_private_copy(dll))).OodleLZ_Decompress
+            except (OSError, AttributeError):  # can't copy, wrong bitness, not Windows, or not Oodle after all
                 continue
             fn.restype = ctypes.c_ssize_t
             fn.argtypes = [ctypes.c_char_p, ctypes.c_ssize_t, ctypes.c_char_p, ctypes.c_ssize_t, ctypes.c_int, ctypes.c_int,

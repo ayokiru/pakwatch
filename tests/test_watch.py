@@ -48,6 +48,20 @@ class WatchTests(unittest.TestCase):
         self.look(state)
         self.assertEqual(len(self.toasts), 1)
 
+    def test_a_failing_game_doesnt_stop_the_others(self):
+        import subprocess
+        games = [steam.Game(n, Path(n), Path(n), 1) for n in ("Hung", "Fine")]
+        report = mock.Mock(patched=True, since="2026-11-06T10:00:00Z", mods=[], exe_changed=False, ue4ss=None)
+
+        def notify(title, body):
+            if title.startswith("Hung"):
+                raise subprocess.TimeoutExpired("powershell.exe", 60)
+        with mock.patch.object(steam, "manifest", return_value={"buildid": "2", "StateFlags": "4"}), \
+                mock.patch.object(scan, "run", return_value=report):
+            state = watch.check(games, {"hung": "1", "fine": "1"}, notify=notify)
+        self.assertEqual(state["hung"], "1")  # not remembered, so the next look tries again
+        self.assertNotEqual(state["fine"], "1")
+
     def test_summary(self):
         r = scan.run(self.paks)
         self.assertEqual(watch.summary(r), "Your 1 mod looks fine after the update.")

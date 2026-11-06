@@ -62,18 +62,18 @@ def check(games: list[steam.Game], state: dict[str, str], notify=toast) -> dict[
     A game seen for the first time is only remembered (pakwatch takes its first snapshot then)."""
     state = dict(state)
     for g in games:
-        fields = steam.manifest(g.paks)
-        build, key = fields.get("buildid", ""), str(g.paks).lower()
-        if not build or fields.get("StateFlags", "4") != "4":  # 4: fully installed, not halfway through an update
-            continue
-        if state.get(key) == build:
-            continue
         try:
+            fields = steam.manifest(g.paks)
+            build, key = fields.get("buildid", ""), str(g.paks).lower()
+            if not build or fields.get("StateFlags", "4") != "4":  # 4: fully installed, not halfway through an update
+                continue
+            if state.get(key) == build:
+                continue
             report = scan.run(g.paks)
-        except (OSError, ValueError):
-            continue  # try again on the next look
-        if key in state and report.patched:
-            notify(f"{g.name} updated", summary(report))
+            if key in state and report.patched:
+                notify(f"{g.name} updated", summary(report))
+        except Exception:  # a broken file or a hung notification must not stop the watcher; the next look retries
+            continue
         state[key] = build
     return state
 
@@ -105,16 +105,19 @@ def run(interval: int = INTERVAL, dry_run: bool = False) -> None:
         print("pakwatch watch is already running.")
         return
     while True:
-        games = [g for g in steam.games() if g.mods]
         if dry_run:
+            games = [g for g in steam.games() if g.mods]
             check(games, state, notify=lambda title, body: print(f"{title}: {body}"))
             print(f"Looked at {len(games)} Steam game{'s' if len(games) != 1 else ''} with mods.")
             return
-        new = check(games, state)
-        if new != state:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(new, indent=1), encoding="utf-8")
-            state = new
+        try:
+            new = check([g for g in steam.games() if g.mods], state)
+            if new != state:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(new, indent=1), encoding="utf-8")
+                state = new
+        except Exception:  # Steam's files half written, a full disk: keep the state and look again later
+            pass
         time.sleep(interval)
 
 

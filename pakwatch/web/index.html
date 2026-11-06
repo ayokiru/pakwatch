@@ -343,7 +343,7 @@ function render(r, name) {
       el("span", { class: "main" }, el("div", { class: "name" }, m.name), el("div", { class: "sub" }, m.on ? "On" : "Off"))))),
   ].filter(Boolean), (r.ue4ss.mods.length ? "" : "No script mods in its Mods folder. ") + "pakwatch lists script mods, but it can't tell which of them an update breaks."));
   if (r.conflicts.length) parts.push(section("Replaced by more than one mod", r.conflicts.map(conflictItem),
-    "The game loads one version of each file, so the other mods lose that part."));
+    "The game loads one version of each file, so the other mods lose that part. Which one loads was seen in Phantom Blade Zero and may differ in other games."));
   main.replaceChildren(...parts);
   main.classList.remove("fade-in"); void main.offsetWidth; main.classList.add("fade-in");
 }
@@ -443,7 +443,7 @@ function alertBar(text) {  // a message under the toolbar, not a modal dialog
 
 function conflictItem(c) {
   return el("div", { class: "item conflict" }, el("div", { class: "row" }, symbol("orange", "pair", true),
-    el("span", { class: "main" }, el("div", { class: "path" }, c.path), el("div", { class: "sub" }, new Intl.ListFormat("en").format(c.mods)))));
+    el("span", { class: "main" }, el("div", { class: "path" }, c.path), el("div", { class: "sub" }, `${new Intl.ListFormat("en").format(c.mods)} · loads: ${c.loads}`))));
 }
 
 document.getElementById("other").addEventListener("submit", (e) => {

@@ -77,7 +77,7 @@ def show(report: scan.Report, out=sys.stdout) -> int:
     if report.conflicts:
         w("\nReplaced by more than one mod (the game loads one version)\n")
         for cid, tocs in sorted(report.conflicts.items(), key=lambda kv: short(kv[1][0], kv[0])):
-            w(f"  {short(tocs[0], cid)}  {', '.join(t.path.stem for t in tocs)}\n")
+            w(f"  {short(tocs[0], cid)}  {', '.join(t.path.stem for t in tocs)}  (loads: {tocs[0].path.stem})\n")
     touched = any(m.status in TOUCHED for m in report.mods)
     return 1 if touched or report.conflicts else 0
 

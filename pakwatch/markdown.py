@@ -60,6 +60,6 @@ def render(r: dict, name: str) -> str:
             out += ["", UE4SS_WARNING]
     if r["conflicts"]:
         out += ["", "**Replaced by more than one mod**"]
-        out += [f"- `{c['path']}`: " + ", ".join(f"`{m}`" for m in c["mods"]) for c in r["conflicts"]]
+        out += [f"- `{c['path']}`: " + ", ".join(f"`{m}`" for m in c["mods"]) + f" (loads: `{c['loads']}`)" for c in r["conflicts"]]
     out += ["", "<sub>Checked with [pakwatch](https://github.com/ayokiru/pakwatch)</sub>"]
     return "\n".join(out) + "\n"

@@ -33,7 +33,7 @@ def report_json(r: scan.Report, paks: Path) -> dict:
                      "imports_note": getattr(m.toc, "imports_note", "") if r.patched else ""})
     order = {"patch touched": 0, "uses changed": 1, "updated after patch": 2, "ok": 3, "adds only": 4}
     mods.sort(key=lambda x: (order[x["status"]], x["name"].lower()))
-    conflicts = sorted(({"path": short(tocs[0], cid), "mods": [t.path.stem for t in tocs]}
+    conflicts = sorted(({"path": short(tocs[0], cid), "mods": [t.path.stem for t in tocs], "loads": tocs[0].path.stem}
                         for cid, tocs in r.conflicts.items()), key=lambda c: c["path"])
     return {"paks": str(paks), "game_files": r.game_files, "patched": r.patched,
             "snapshot": r.snapshot.taken if r.snapshot else None, "since": r.since, "first": r.first, "unreadable": [{"name": n, "why": w} for n, w in r.unreadable], "update": {"changed": r.files_changed, "added": r.files_added, "removed": r.files_removed,

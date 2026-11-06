@@ -71,6 +71,20 @@ class PatchFlowTests(unittest.TestCase):
         self.assertEqual(list(r.conflicts), [SWORD])
         self.assertEqual(sorted(t.path.name for t in r.conflicts[SWORD]), ["zzz_MoreSwords_P.utoc", "zzz_Swords_P.utoc"])
 
+    def test_the_first_file_name_in_ascii_order_loads(self):  # capital letters sort before small ones
+        import io
+        from pakwatch import __main__ as cli, gui, markdown
+        write(self.paks / "~mods" / "zzz_aSwords_P.utoc", {SWORD: b"x" * 20}, self.t0 + 10)
+        write(self.paks / "~mods" / "zzz_ZSwords_P.utoc", {SWORD: b"y" * 20}, self.t0 + 10)
+        r = scan.run(self.paks, self.store)
+        self.assertEqual([t.path.stem for t in r.conflicts[SWORD]], ["zzz_Swords_P", "zzz_ZSwords_P", "zzz_aSwords_P"])
+        out = io.StringIO()
+        cli.show(r, out)
+        self.assertIn("zzz_Swords_P, zzz_ZSwords_P, zzz_aSwords_P  (loads: zzz_Swords_P)\n", out.getvalue())
+        j = gui.report_json(r, self.paks)
+        self.assertEqual(j["conflicts"][0]["loads"], "zzz_Swords_P")
+        self.assertIn("(loads: `zzz_Swords_P`)", markdown.render(j, "Game"))
+
     def test_cli_output_and_exit_code(self):
         import io
         from pakwatch import __main__ as cli

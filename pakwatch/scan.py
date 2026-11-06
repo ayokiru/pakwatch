@@ -152,7 +152,7 @@ class Report:
     snapshot: Snapshot | None
     patched: bool                                          # the game differs from the snapshot
     mods: list[ModReport]
-    conflicts: dict[bytes, list[Toc]]                      # file -> mods that all replace it
+    conflicts: dict[bytes, list[Toc]]                      # file -> mods that all replace it, the one that loads first
     since: str = ""                                        # when this version of the game was first seen (UTC)
     first: bool = False                                    # no snapshot at all before this run
     unreadable: list[tuple[str, str]] = field(default_factory=list)  # (mod name, why) for mods pakwatch can't read
@@ -187,7 +187,8 @@ def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | Non
         for cid in sorted((getattr(m, "imports", None) or set()) & gone - own):
             (r.uses_changed if cid in game else r.uses_removed).append(cid)
         reports.append(r)
-    conflicts = {cid: ms for cid, ms in owners.items() if len(ms) > 1}
+    # Seen in Phantom Blade Zero: of two mods replacing one package, the file name first in ASCII order loads
+    conflicts = {cid: sorted(ms, key=lambda t: t.path.name) for cid, ms in owners.items() if len(ms) > 1}
     report = Report(len(game), snap, patched, reports, conflicts)
     if patched:
         old = snap.chunks

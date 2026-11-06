@@ -164,6 +164,16 @@ class TocTests(unittest.TestCase):
         with self.assertRaisesRegex(utoc.TocError, "newer"):
             utoc.imports(self.mod(version=6))
 
+    def test_header_without_the_magic_is_unknown(self):  # UE 4.27, or damaged: never parsed as a guess
+        toc = self.mod()
+        ucas = toc.path.with_suffix(".ucas")
+        data = bytearray(ucas.read_bytes())
+        at = data.find(struct.pack("<I", utoc.HEADER_MAGIC))
+        data[at:at + 4] = b"\0\0\0\0"
+        ucas.write_bytes(bytes(data))
+        with self.assertRaisesRegex(utoc.TocError, "layout pakwatch doesn't know"):
+            utoc.imports(toc)
+
     def test_import_names_are_checked_by_hash(self):
         from pakwatch.cityhash import chunk_id as package
         self.assertEqual(utoc.import_names(self.mod()), {package("/Game/FX/NS_Trail"): "/Game/FX/NS_Trail"})

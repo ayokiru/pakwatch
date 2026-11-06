@@ -235,23 +235,19 @@ def package_chunk(package_id: int) -> bytes:
 
 def imports(toc: Toc, oodle_dirs: tuple = ()) -> dict[bytes, list[bytes]]:
     """Package chunk id -> chunk ids of the packages it imports, from the store entries in the container header
-    (FFilePackageStoreEntry; the layouts per version are the ones retoc's container_header.rs reads)."""
+    (FFilePackageStoreEntry, UE 5.0 to 5.7; the layouts per version are the ones retoc's container_header.rs reads)."""
     index = next((i for i, c in enumerate(toc.chunk_ids) if c[11] == CONTAINER_HEADER), None)
     if index is None:
         return {}
     d = read_chunk(toc, index, oodle_dirs=oodle_dirs)
     try:
-        if struct.unpack_from("<I", d)[0] == HEADER_MAGIC:
-            version = struct.unpack_from("<I", d, 4)[0]
-            if version > 5:
-                raise TocError(f"its container header (version {version}) is newer than pakwatch knows")
-            pos = 16 + (4 if version < 2 else 0)                     # magic, version, container id, package count
-            member, size = (8, 24) if version < 3 else (0, 16)
-        else:                                                       # UE 4.27: no magic
-            pos = 12
-            for _ in range(2):                                      # name batch and its hashes
-                pos += 4 + struct.unpack_from("<i", d, pos)[0]
-            member, size = 24, 32
+        magic, version = struct.unpack_from("<II", d)
+        if magic != HEADER_MAGIC or version < 1:
+            raise TocError("its container header has a layout pakwatch doesn't know")
+        if version > 5:
+            raise TocError(f"its container header (version {version}) is newer than pakwatch knows")
+        pos = 16 + (4 if version < 2 else 0)                         # magic, version, container id, package count
+        member, size = (8, 24) if version < 3 else (0, 16)
         (n,) = struct.unpack_from("<i", d, pos)
         ids = struct.unpack_from(f"<{n}Q", d, pos + 4)
         pos += 4 + 8 * n

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .__main__ import UE4SS_WARNING
+from .__main__ import GROUPS, UE4SS_WARNING
 
 
 def _date(iso: str) -> str:
@@ -27,10 +27,7 @@ def render(r: dict, name: str) -> str:
         out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update {', '.join(parts) or 'changed no files'}.")
     else:
         out.append(f"No game update since {_date(r['since'])}" + (f" (build {u['build']})." if u["build"] else "."))
-    groups = [("patch touched", "Needs a look"), ("uses changed", "Uses changed game files"),
-              ("updated after patch", "Updated by their authors"),
-              ("ok", "Fine"), ("adds only", "Only add files")]
-    for status, title in groups:
+    for status, title, _ in GROUPS:
         mods = [m for m in r["mods"] if m["status"] == status]
         if not mods:
             continue

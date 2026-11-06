@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import utoc
+from . import ue4ss, utoc
 from .pak import read_pak
 from .utoc import Toc, read_toc
 
@@ -86,12 +86,13 @@ class Snapshot:
     taken: str
     chunks: dict[bytes, bytes]
     build: str = ""  # Steam build id of this game version, if known
+    exe: str = ""    # size and time of the game's exe, if found (older snapshots have none)
 
     def save(self, folder: Path) -> Path:
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{self.taken.replace(':', '')}_{self.fingerprint}.snap"
         body = b"".join(c + h for c, h in sorted(self.chunks.items()))
-        head = " ".join(filter(None, ("pakwatch1", self.fingerprint, self.taken, self.build)))
+        head = " ".join(filter(None, ("pakwatch1", self.fingerprint, self.taken, self.build, self.exe and "exe=" + self.exe)))
         with gzip.open(path, "wb") as f:
             f.write(head.encode() + b"\n" + body)
         return path
@@ -104,7 +105,9 @@ class Snapshot:
         if parts[0] != "pakwatch1" or len(parts) < 3 or len(body) % RECORD:
             raise ValueError(f"{Path(path).name} is not a pakwatch snapshot")
         chunks = {body[i:i + 12]: body[i + 12:i + RECORD] for i in range(0, len(body), RECORD)}
-        return Snapshot(parts[1], parts[2], chunks, parts[3] if len(parts) > 3 else "")
+        extra = parts[3:]
+        build = extra[0] if extra and not extra[0].startswith("exe=") else ""
+        return Snapshot(parts[1], parts[2], chunks, build, next((x[4:] for x in extra if x.startswith("exe=")), ""))
 
 
 def _snaps(folder: Path) -> list[Path]:
@@ -158,6 +161,8 @@ class Report:
     files_removed: int = 0
     build: str = ""                                        # Steam build id now, and before the update
     build_before: str = ""
+    ue4ss: dict | None = None                              # UE4SS folder, version and script mods (ue4ss.find)
+    exe_changed: bool = False                              # the update changed the game's exe
 
 
 def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | None, fp: str,
@@ -236,6 +241,9 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
     report.unreadable = unreadable
     from .steam import build_id  # steam.py imports this module
     report.build = build_id(paks_dir)
+    exe = ue4ss.exe_signature(paks_dir)
+    report.exe_changed = bool(report.patched and snap.exe and exe and snap.exe != exe)
+    report.ue4ss = ue4ss.find(paks_dir)
     snaps = _snaps(folder)
     report.first = not snaps
     mine = [p for p in snaps if p.stem.endswith("_" + fp)]
@@ -244,5 +252,5 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
         report.since = f"{t[:13]}:{t[13:15]}:{t[15:]}"
     else:
         report.since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        Snapshot(fp, report.since, game, report.build).save(folder)
+        Snapshot(fp, report.since, game, report.build, exe).save(folder)
     return report

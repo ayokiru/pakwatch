@@ -14,6 +14,8 @@ def short(toc: Toc, cid: bytes) -> str:
     return toc.name_of(cid).replace("../../../", "")
 
 
+UE4SS_WARNING = ("The game's exe changed in this update. Script mods often break when the exe changes, "
+                 "so check for a new UE4SS and new versions of your script mods.")
 TOUCHED = ("patch touched", "uses changed")  # statuses that make the exit code 1
 GROUPS = [("patch touched", "Needs a look", "!"), ("uses changed", "Uses changed game files", "!"),
           ("updated after patch", "Updated by their authors", "+"),
@@ -65,6 +67,13 @@ def show(report: scan.Report, out=sys.stdout) -> int:
         w("\nCouldn't read\n")
         for name, why in report.unreadable:
             w(f"? {name}  {why}\n")
+    if report.ue4ss:
+        u = report.ue4ss
+        w(f"\nUE4SS{' ' + u['version'] if u['version'] else ''}, {len(u['mods'])} script mod{'' if len(u['mods']) == 1 else 's'}\n")
+        for m in u["mods"]:
+            w(f"  {'on ' if m['on'] else 'off'}  {m['name']}\n")
+        if report.exe_changed:
+            w(f"! {UE4SS_WARNING}\n")
     if report.conflicts:
         w("\nReplaced by more than one mod (the game loads one version)\n")
         for cid, tocs in sorted(report.conflicts.items(), key=lambda kv: short(kv[1][0], kv[0])):

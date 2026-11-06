@@ -193,6 +193,7 @@ const PATHS = {  // symbol shapes, our own constants
   info: '<path d="M12 11v6"/><path d="M12 7h.01"/>',
   pair: '<path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h5"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  script: '<path d="m9 8-4 4 4 4"/><path d="m15 8 4 4-4 4"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   power: '<path d="M12 4v7"/><path d="M7.5 7a7 7 0 1 0 9 0"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
@@ -305,7 +306,8 @@ function verdict(r, name) {
 
 function render(r, name) {
   const main = document.getElementById("report");
-  const [color, sym, title, text] = verdict(r, name);
+  const [color, sym, title, verdictText] = verdict(r, name);
+  const text = verdictText + (r.exe_changed && r.ue4ss ? " The game's exe changed too, so check your UE4SS script mods." : "");
   document.getElementById("tb-title").textContent = name;
   const side = [...document.querySelectorAll(".game")].find((b) => b.dataset.folder === current);
   if (side) side.querySelector(".s").textContent = r.mods.length ? count(r.mods.length, "mod") : "No mods";  // after a mod was turned off
@@ -333,6 +335,13 @@ function render(r, name) {
   if (r.unreadable.length) parts.push(section("Couldn't read", r.unreadable.map((m) => el("div", { class: "item" },
     el("div", { class: "row" }, symbol("gray", "info", true), el("span", { class: "main" }, el("div", { class: "name" }, m.name),
       el("div", { class: "sub" }, m.why))))), "pakwatch skips these mods, so the report says nothing about them."));
+  if (r.ue4ss) parts.push(section(`UE4SS${r.ue4ss.version ? " " + r.ue4ss.version : ""} script mods`, [
+    r.exe_changed ? el("div", { class: "item" }, el("div", { class: "row" }, symbol("orange", "warn", true), el("span", { class: "main" },
+      el("div", { class: "name" }, "The game's exe changed in this update"),
+      el("div", { class: "sub" }, "Script mods often break when the exe changes. Check for a new UE4SS and new versions of your script mods.")))) : null,
+    ...r.ue4ss.mods.map((m) => el("div", { class: "item" }, el("div", { class: "row" }, symbol(m.on ? "blue" : "gray", "script", true),
+      el("span", { class: "main" }, el("div", { class: "name" }, m.name), el("div", { class: "sub" }, m.on ? "On" : "Off"))))),
+  ].filter(Boolean), (r.ue4ss.mods.length ? "" : "No script mods in its Mods folder. ") + "pakwatch lists script mods, but it can't tell which of them an update breaks."));
   if (r.conflicts.length) parts.push(section("Replaced by more than one mod", r.conflicts.map(conflictItem),
     "The game loads one version of each file, so the other mods lose that part."));
   main.replaceChildren(...parts);

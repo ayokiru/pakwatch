@@ -37,7 +37,9 @@ def report_json(r: scan.Report, paks: Path) -> dict:
                         for cid, tocs in r.conflicts.items()), key=lambda c: c["path"])
     return {"paks": str(paks), "game_files": r.game_files, "patched": r.patched,
             "snapshot": r.snapshot.taken if r.snapshot else None, "since": r.since, "first": r.first, "unreadable": [{"name": n, "why": w} for n, w in r.unreadable], "update": {"changed": r.files_changed, "added": r.files_added, "removed": r.files_removed,
-                                          "build_before": r.build_before, "build": r.build}, "mods": mods, "conflicts": conflicts}
+                                          "build_before": r.build_before, "build": r.build}, "mods": mods, "conflicts": conflicts,
+            "ue4ss": r.ue4ss and {"version": r.ue4ss["version"], "folder": str(r.ue4ss["folder"]), "mods": r.ue4ss["mods"]},
+            "exe_changed": r.exe_changed}
 
 
 def full_report(paks: Path) -> dict:

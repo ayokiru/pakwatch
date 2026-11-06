@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from .__main__ import UE4SS_WARNING
+
 
 def _date(iso: str) -> str:
     return datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").strftime("%d %b %Y").lstrip("0")
@@ -50,6 +52,12 @@ def render(r: dict, name: str) -> str:
                 out.append(f"  - imports not readable: {m['imports_note']}")
     if r.get("unreadable"):
         out += ["", "**Couldn't read**"] + [f"- `{x['name']}`: {x['why']}" for x in r["unreadable"]]
+    if r.get("ue4ss"):
+        u = r["ue4ss"]
+        out += ["", f"**UE4SS{' ' + u['version'] if u['version'] else ''} script mods**"]
+        out += [f"- `{m['name']}`" + ("" if m["on"] else " (off)") for m in u["mods"]] or ["- none"]
+        if r.get("exe_changed"):
+            out += ["", UE4SS_WARNING]
     if r["conflicts"]:
         out += ["", "**Replaced by more than one mod**"]
         out += [f"- `{c['path']}`: " + ", ".join(f"`{m}`" for m in c["mods"]) for c in r["conflicts"]]

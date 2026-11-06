@@ -73,8 +73,30 @@ def show(report: scan.Report, out=sys.stdout) -> int:
     return 1 if touched or report.conflicts else 0
 
 
+def watch_main(argv: list[str]) -> int:
+    from . import watch
+    ap = argparse.ArgumentParser(prog="pakwatch watch", description="Check your Steam games with mods after every "
+                                 "Steam update and show the result in a Windows notification.")
+    which = ap.add_mutually_exclusive_group()
+    which.add_argument("--install", action="store_true", help="start pakwatch watch at every logon (a Startup shortcut)")
+    which.add_argument("--uninstall", action="store_true", help="stop starting it at logon")
+    ap.add_argument("--dry-run", action="store_true", help="say what would happen, change nothing and show no notification")
+    args = ap.parse_args(argv)
+    if args.install:
+        print(watch.install(args.dry_run), end="")
+    elif args.uninstall:
+        print(watch.uninstall(args.dry_run), end="")
+    else:
+        watch.run(dry_run=args.dry_run)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="pakwatch", description=__doc__.split(": ", 1)[1])
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["watch"]:
+        return watch_main(argv[1:])
+    ap = argparse.ArgumentParser(prog="pakwatch", description=__doc__.split(": ", 1)[1],
+                                 epilog="pakwatch watch --help: check after every Steam update")
     ap.add_argument("game", type=Path, nargs="?",
                     help="the game's install folder (or its Content\\Paks); without it pakwatch opens in your browser")
     ap.add_argument("--markdown", action="store_true", help="print the report as Markdown, ready to paste")

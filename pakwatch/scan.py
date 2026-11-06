@@ -72,9 +72,12 @@ def oodle_dirs(paks_dir: Path) -> tuple[Path, ...]:
 
 
 # --- snapshots -----------------------------------------------------------------------------------------
+def store_root() -> Path:
+    return Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share")) / "pakwatch"
+
+
 def store_dir(paks_dir: Path) -> Path:
-    base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share")) / "pakwatch"
-    return base / hashlib.sha1(str(Path(paks_dir).resolve()).lower().encode()).hexdigest()[:12]
+    return store_root() / hashlib.sha1(str(Path(paks_dir).resolve()).lower().encode()).hexdigest()[:12]
 
 
 @dataclass

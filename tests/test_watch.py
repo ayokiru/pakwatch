@@ -90,3 +90,18 @@ class WatchTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SingleInstanceTests(unittest.TestCase):
+    def test_second_watcher_gets_no_lock(self):
+        import tempfile
+        from pathlib import Path
+        from pakwatch import watch
+        lock = Path(tempfile.mkdtemp()) / "watch.lock"
+        first = watch.single_instance(lock)
+        self.assertIsNotNone(first)
+        self.assertIsNone(watch.single_instance(lock))
+        first.close()
+        again = watch.single_instance(lock)
+        self.assertIsNotNone(again)
+        again.close()

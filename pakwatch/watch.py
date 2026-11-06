@@ -78,10 +78,32 @@ def check(games: list[steam.Game], state: dict[str, str], notify=toast) -> dict[
     return state
 
 
+def single_instance(lock: Path):
+    """An open file holding a lock while this watcher runs, or None if another one already does."""
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    f = open(lock, "a+b")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
 def run(interval: int = INTERVAL, dry_run: bool = False) -> None:
     """Look every few minutes. A dry run looks once, prints instead of notifying and remembers nothing."""
     path = state_file()
     state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    # a second logon or a manual start would otherwise give every notification twice
+    lock = None if dry_run else single_instance(path.with_name("watch.lock"))
+    if not dry_run and lock is None:
+        print("pakwatch watch is already running.")
+        return
     while True:
         games = [g for g in steam.games() if g.mods]
         if dry_run:

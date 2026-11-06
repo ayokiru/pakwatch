@@ -5,9 +5,13 @@ import unittest
 from pathlib import Path
 
 from pakwatch import scan
-from tests.test_utoc import build_toc, chunk_id
+from tests.test_utoc import build_container, build_toc, chunk_id, container_header, zen_package
 
 SWORD, SHIELD, BOW, NEW = chunk_id(1, 1), chunk_id(2, 1), chunk_id(3, 1), chunk_id(9, 1)
+
+
+def package_id_of(cid: bytes) -> int:
+    return int.from_bytes(cid[:8], "little")
 
 
 def write(path: Path, files: dict[bytes, bytes], mtime: float) -> None:
@@ -77,6 +81,39 @@ class PatchFlowTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("Needs a look\n! zzz_Swords_P  replaces 1 game file, adds 1\n    changed  package", out.getvalue())
         self.assertIn("The update changed 1 game file, removed 1.", out.getvalue())  # no "added 0"
+
+    def test_mod_that_uses_a_changed_game_file(self):
+        import io
+        from pakwatch import __main__ as cli, gui, markdown
+        from pakwatch.cityhash import chunk_id as package
+        trail = package("/Game/FX/NS_Trail")
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"a" * 20, trail: b"t" * 20}, self.t0)
+        mine = chunk_id(50, 1)
+        build_container(self.paks / "~mods", "zzz_Trails_P", {mine: zen_package(["/Game/FX/NS_Trail"]),
+                                                              chunk_id(51, 6): container_header({50: [package_id_of(trail)]})})
+        os.utime(self.paks / "~mods" / "zzz_Trails_P.utoc", (self.t0 + 10, self.t0 + 10))
+        self.assertEqual(self.status(scan.run(self.paks, self.store))["zzz_Trails_P.utoc"], "adds only")
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"a" * 20, trail: b"T" * 20}, self.t0 + 100)
+        r = scan.run(self.paks, self.store)
+        trails = next(m for m in r.mods if m.toc.path.stem == "zzz_Trails_P")
+        self.assertEqual((trails.status, trails.uses_changed), ("uses changed", [trail]))
+        out = io.StringIO()
+        self.assertEqual(cli.show(r, out), 1)
+        self.assertIn("Uses changed game files\n! zzz_Trails_P  adds 1\n    uses changed  /Game/FX/NS_Trail\n", out.getvalue())
+        j = gui.report_json(r, self.paks)
+        self.assertEqual(j["mods"][0]["uses"], [{"path": "/Game/FX/NS_Trail", "what": "changed"}])
+        self.assertIn("**Uses changed game files**\n- `zzz_Trails_P`: its own files use a game file the update changed\n"
+                      "  - changed `/Game/FX/NS_Trail`", markdown.render(j | {"name": "Game"}, "Game"))
+
+    def test_imports_not_readable(self):
+        import io
+        from pakwatch import __main__ as cli
+        build_container(self.paks / "~mods", "zzz_Packed_P", {chunk_id(50, 1): b"x", chunk_id(51, 6): b"y"}, compress="Oodle")
+        scan.run(self.paks, self.store)
+        write(self.paks / "Game-Windows.utoc", {SWORD: b"A" * 20, SHIELD: b"b" * 20, BOW: b"c" * 20}, self.t0 + 100)
+        out = io.StringIO()
+        cli.show(scan.run(self.paks, self.store), out)
+        self.assertIn("zzz_Packed_P  adds 1\n    imports not readable: it is compressed with Oodle", out.getvalue())
 
     def test_find_paks(self):
         from pakwatch.scan import find_paks

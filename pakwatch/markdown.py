@@ -25,7 +25,8 @@ def render(r: dict, name: str) -> str:
         out.append(f"The game updated after {_date(r['snapshot'])}{build}. The update {', '.join(parts) or 'changed no files'}.")
     else:
         out.append(f"No game update since {_date(r['since'])}" + (f" (build {u['build']})." if u["build"] else "."))
-    groups = [("patch touched", "Needs a look"), ("updated after patch", "Updated by their authors"),
+    groups = [("patch touched", "Needs a look"), ("uses changed", "Uses changed game files"),
+              ("updated after patch", "Updated by their authors"),
               ("ok", "Fine"), ("adds only", "Only add files")]
     for status, title in groups:
         mods = [m for m in r["mods"] if m["status"] == status]
@@ -39,8 +40,14 @@ def render(r: dict, name: str) -> str:
                         else "both game files" if t == 2 else f"all {_files(t)}")
                 out.append(f"- `{m['name']}`: the update changed {what} it replaces")
                 out += [f"  - {f['what']} `{f['path']}`" for f in m["touched"]]
+            elif status == "uses changed":
+                u = len(m["uses"])
+                out.append(f"- `{m['name']}`: its own files use {'a game file' if u == 1 else f'{u} game files'} the update changed")
+                out += [f"  - {f['what']} `{f['path']}`" for f in m["uses"]]
             else:
                 out.append(f"- `{m['name']}`")
+            if m.get("imports_note"):
+                out.append(f"  - imports not readable: {m['imports_note']}")
     if r.get("unreadable"):
         out += ["", "**Couldn't read**"] + [f"- `{x['name']}`: {x['why']}" for x in r["unreadable"]]
     if r["conflicts"]:

@@ -26,9 +26,12 @@ def report_json(r: scan.Report, paks: Path) -> dict:
     for m in r.mods:
         touched = [{"path": short(m.toc, c), "what": "changed"} for c in m.changed] + \
                   [{"path": short(m.toc, c), "what": "removed"} for c in m.removed]
+        uses = [{"path": m.import_name(c), "what": "changed"} for c in m.uses_changed] + \
+               [{"path": m.import_name(c), "what": "removed"} for c in m.uses_removed]
         mods.append({"name": m.toc.path.stem, "where": m.toc.path.parent.name, "status": m.status, "replaced": len(m.replaced),
-                     "added": m.added, "touched": touched, "files": sorted(short(m.toc, c) for c in m.replaced)})
-    order = {"patch touched": 0, "updated after patch": 1, "ok": 2, "adds only": 3}
+                     "added": m.added, "touched": touched, "uses": uses, "files": sorted(short(m.toc, c) for c in m.replaced),
+                     "imports_note": getattr(m.toc, "imports_note", "") if r.patched else ""})
+    order = {"patch touched": 0, "uses changed": 1, "updated after patch": 2, "ok": 3, "adds only": 4}
     mods.sort(key=lambda x: (order[x["status"]], x["name"].lower()))
     conflicts = sorted(({"path": short(tocs[0], cid), "mods": [t.path.stem for t in tocs]}
                         for cid, tocs in r.conflicts.items()), key=lambda c: c["path"])

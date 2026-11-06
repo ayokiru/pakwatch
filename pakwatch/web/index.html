@@ -193,16 +193,18 @@ const PATHS = {  // symbol shapes, our own constants
   info: '<path d="M12 11v6"/><path d="M12 7h.01"/>',
   pair: '<path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h5"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   power: '<path d="M12 4v7"/><path d="M7.5 7a7 7 0 1 0 9 0"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
 };
 const KIND = {
   "patch touched": { color: "orange", sym: "warn", section: "Needs a look" },
+  "uses changed": { color: "orange", sym: "link", section: "Uses changed game files" },
   "updated after patch": { color: "blue", sym: "arrow", section: "Updated by their authors" },
   "ok": { color: "green", sym: "check", section: "Fine" },
   "adds only": { color: "gray", sym: "plus", section: "Only add files" },
 };
-const ORDER = ["patch touched", "updated after patch", "ok", "adds only"];
+const ORDER = ["patch touched", "uses changed", "updated after patch", "ok", "adds only"];
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -286,11 +288,15 @@ async function check(folder, name) {
 
 function verdict(r, name) {
   const need = r.mods.filter((m) => m.status === "patch touched").length;
+  const uses = r.mods.filter((m) => m.status === "uses changed").length;
+  const also = need && uses ? ` ${count(uses, "other mod uses", "other mods use")} game files it changed.` : "";
   const clash = r.conflicts.length ? ` ${count(r.conflicts.length, "file is", "files are")} replaced by more than one mod.` : "";
   if (r.first) return ["blue", "info", `pakwatch now knows this version of ${name}`,
     "Open it again after the next game update to see which of your mods the update touched." + clash];
   if (r.patched && need) return ["orange", "warn", `${count(need, "mod needs", "mods need")} a look`,
-    `${name} updated after ${when(r.snapshot)}, and the update changed files ${need === 1 ? "this mod replaces" : "these mods replace"}.` + clash];
+    `${name} updated after ${when(r.snapshot)}, and the update changed files ${need === 1 ? "this mod replaces" : "these mods replace"}.` + also + clash];
+  if (r.patched && uses) return ["orange", "link", `${count(uses, "mod uses", "mods use")} changed game files`,
+    `${name} updated after ${when(r.snapshot)}. ${uses === 1 ? "This mod replaces nothing that changed, but its own files use" : "These mods replace nothing that changed, but their own files use"} game files the update changed.` + clash];
   if (r.patched) return ["green", "check", "Your mods look fine after the update",
     `${name} updated after ${when(r.snapshot)}, but none of the files your mods replace changed.` + clash];
   return ["green", "check", `No game update since ${when(r.since)}`,
@@ -376,12 +382,17 @@ function modItem(m) {
   if (m.status === "patch touched") sub = t < m.replaced ? `The update changed ${num(t)} of the ${count(m.replaced, "game file")} it replaces`
     : t === 1 ? "The update changed the game file it replaces"
     : `The update changed ${t === 2 ? "both" : "all " + num(t)} game files it replaces`;
-  else if (m.status === "updated after patch") sub = `Replaces ${count(m.replaced, "game file")} and was updated after the game`;
+  else if (m.status === "uses changed") sub = m.uses.length === 1 ? "Its own files use a game file the update changed"
+    : `Its own files use ${num(m.uses.length)} game files the update changed`;
+  else if (m.status === "updated after patch") sub = (m.replaced ? `Replaces ${count(m.replaced, "game file")} and was` : "It was") + " updated after the game";
   else if (m.status === "adds only") sub = `Adds ${count(m.added, "file")} of its own`;
   else sub = `Replaces ${count(m.replaced, "game file")}` + (m.added ? `, adds ${num(m.added)} of its own` : "");
   const detail = [];
   if (m.touched.length) detail.push(el("h3", {}, "Changed by the update"),
     el("ul", { class: "paths" }, m.touched.map((f) => el("li", { class: "hit" }, el("span", { class: "what" }, f.what === "changed" ? "Changed" : "Removed"), f.path))));
+  if (m.uses.length) detail.push(el("h3", {}, "Game files it uses that the update changed"),
+    el("ul", { class: "paths" }, m.uses.map((f) => el("li", { class: "hit" }, el("span", { class: "what" }, f.what === "changed" ? "Changed" : "Removed"), f.path))));
+  if (m.imports_note) detail.push(el("p", { class: "where" }, `pakwatch couldn't read which game files this mod uses: ${m.imports_note}.`));
   if (m.files.length) {
     const shown = m.files.slice(0, 300);
     detail.push(el("h3", {}, "Game files it replaces"), el("ul", { class: "paths" }, shown.map((f) => el("li", {}, f)),

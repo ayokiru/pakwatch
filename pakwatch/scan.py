@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import utoc
 from .pak import read_pak
 from .utoc import Toc, read_toc
 
@@ -59,6 +60,15 @@ def find_paks(folder: Path) -> Path:
         if len(hits) == 1:
             return hits[0]
     raise FileNotFoundError(f"no IoStore containers (.utoc) in {folder} or its Content\\Paks")
+
+
+def oodle_dirs(paks_dir: Path) -> tuple[Path, ...]:
+    """Where a game keeps its Oodle DLL: next to the exe in <Project>/Binaries/Win64, or the install folder."""
+    paks_dir = Path(paks_dir)
+    if paks_dir.parent.name.lower() != "content":
+        return (paks_dir,)
+    project = paks_dir.parent.parent
+    return (project / "Binaries" / "Win64", project.parent, project.parent / "Engine" / "Binaries" / "Win64")
 
 
 # --- snapshots -----------------------------------------------------------------------------------------
@@ -112,14 +122,22 @@ class ModReport:
     replaced: list[bytes] = field(default_factory=list)   # game files the mod replaces
     changed: list[bytes] = field(default_factory=list)    # ...that the patch changed since the snapshot
     removed: list[bytes] = field(default_factory=list)    # ...that the patch removed
+    uses_changed: list[bytes] = field(default_factory=list)  # game packages its own files import that the patch changed
+    uses_removed: list[bytes] = field(default_factory=list)  # ...or removed
+    names: dict[bytes, str] = field(default_factory=dict)    # package names for those, where known
     added: int = 0                                         # files of its own
     newer_than_patch: bool = False                         # the mod file was written after the game's files
 
     @property
     def status(self) -> str:
-        if self.changed or self.removed:
-            return "updated after patch" if self.newer_than_patch else "patch touched"
+        if self.changed or self.removed or self.uses_changed or self.uses_removed:
+            if self.newer_than_patch:
+                return "updated after patch"
+            return "patch touched" if self.changed or self.removed else "uses changed"
         return "ok" if self.replaced else "adds only"
+
+    def import_name(self, cid: bytes) -> str:
+        return self.names.get(cid) or utoc.label(cid)
 
 
 @dataclass
@@ -143,6 +161,7 @@ def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | Non
                  patch_time: float = 0.0) -> Report:
     patched = snap is not None and snap.fingerprint != fp
     reports, owners = [], {}
+    gone = {c for c, h in snap.chunks.items() if c[11] == utoc.PACKAGE and game.get(c) != h} if patched else set()
     for m in mods:
         r = ModReport(m, newer_than_patch=patched and m.path.exists() and m.path.stat().st_mtime > patch_time)
         for cid in m.chunks():
@@ -156,6 +175,9 @@ def build_report(game: dict[bytes, bytes], mods: list[Toc], snap: Snapshot | Non
                         r.changed.append(cid)
             else:
                 r.added += 1
+        own = m.chunks().keys()  # an import the mod brings itself doesn't count
+        for cid in sorted((getattr(m, "imports", None) or set()) & gone - own):
+            (r.uses_changed if cid in game else r.uses_removed).append(cid)
         reports.append(r)
     conflicts = {cid: ms for cid, ms in owners.items() if len(ms) > 1}
     report = Report(len(game), snap, patched, reports, conflicts)
@@ -177,8 +199,10 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
         raise FileNotFoundError(f"no .utoc containers in {paks_dir}")
     folder = folder or store_dir(paks_dir)
     fp = fingerprint(game_paths)
-    game = game_chunks([read_toc(p) for p in game_paths])
+    game_tocs = [read_toc(p) for p in game_paths]
+    game = game_chunks(game_tocs)
     patch_time = max(p.stat().st_mtime for p in game_paths)
+    snap = baseline(folder, fp)
     readable, unreadable = [], []
     for p in mod_paths:
         try:
@@ -190,7 +214,22 @@ def run(paks_dir: Path, folder: Path | None = None) -> Report:
             unreadable.append((p.stem, "its file list is encrypted"))
             continue
         readable.append(m)
-    report = build_report(game, readable, baseline(folder, fp), fp, patch_time)
+    dirs = oodle_dirs(paks_dir)
+    if snap is not None and snap.fingerprint != fp:  # imports only matter after an update
+        for m in readable:
+            if isinstance(m, Toc):
+                try:
+                    m.imports = {c for imported in utoc.imports(m, dirs).values() for c in imported}
+                except (ValueError, OSError) as e:
+                    m.imports_note = str(e)
+    report = build_report(game, readable, snap, fp, patch_time)
+    for r in report.mods:
+        if r.uses_changed or r.uses_removed:
+            r.names = utoc.import_names(r.toc, dirs)
+            for cid in r.uses_changed + r.uses_removed:  # the game's own index, when it isn't encrypted
+                t = next((t for t in game_tocs if t.names and cid in t.chunk_ids), None)
+                if cid not in r.names and t:
+                    r.names[cid] = t.name_of(cid).replace("../../../", "")
     report.unreadable = unreadable
     from .steam import build_id  # steam.py imports this module
     report.build = build_id(paks_dir)

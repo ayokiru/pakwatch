@@ -14,7 +14,9 @@ def short(toc: Toc, cid: bytes) -> str:
     return toc.name_of(cid).replace("../../../", "")
 
 
-GROUPS = [("patch touched", "Needs a look", "!"), ("updated after patch", "Updated by their authors", "+"),
+TOUCHED = ("patch touched", "uses changed")  # statuses that make the exit code 1
+GROUPS = [("patch touched", "Needs a look", "!"), ("uses changed", "Uses changed game files", "!"),
+          ("updated after patch", "Updated by their authors", "+"),
           ("ok", "Fine", " "), ("adds only", "Only add files", " ")]
 
 
@@ -50,11 +52,15 @@ def show(report: scan.Report, out=sys.stdout) -> int:
         for m in mods:
             detail = [f"replaces {files(len(m.replaced))}" if m.replaced else "", f"adds {m.added:,}" if m.added else ""]
             w(f"{mark} {m.toc.path.stem}  {', '.join(d for d in detail if d)}\n")
-            hit = [(c, "changed") for c in m.changed] + [(c, "removed") for c in m.removed]
-            for cid, what in hit[:20]:
-                w(f"    {what}  {short(m.toc, cid)}\n")
+            hit = [f"changed  {short(m.toc, c)}" for c in m.changed] + [f"removed  {short(m.toc, c)}" for c in m.removed]
+            hit += [f"uses changed  {m.import_name(c)}" for c in m.uses_changed]
+            hit += [f"uses removed  {m.import_name(c)}" for c in m.uses_removed]
+            for line in hit[:20]:
+                w(f"    {line}\n")
             if len(hit) > 20:
                 w(f"    and {len(hit) - 20} more\n")
+            if report.patched and getattr(m.toc, "imports_note", ""):
+                w(f"    imports not readable: {m.toc.imports_note}\n")
     if report.unreadable:
         w("\nCouldn't read\n")
         for name, why in report.unreadable:
@@ -63,7 +69,7 @@ def show(report: scan.Report, out=sys.stdout) -> int:
         w("\nReplaced by more than one mod (the game loads one version)\n")
         for cid, tocs in sorted(report.conflicts.items(), key=lambda kv: short(kv[1][0], kv[0])):
             w(f"  {short(tocs[0], cid)}  {', '.join(t.path.stem for t in tocs)}\n")
-    touched = any(m.status == "patch touched" for m in report.mods)
+    touched = any(m.status in TOUCHED for m in report.mods)
     return 1 if touched or report.conflicts else 0
 
 
@@ -85,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
             from .gui import full_report
             r = full_report(paks)
             sys.stdout.buffer.write(r["markdown"].encode("utf-8"))  # UTF-8 even on a cp1251 console
-            return 1 if r["conflicts"] or any(x["status"] == "patch touched" for x in r["mods"]) else 0
+            return 1 if r["conflicts"] or any(x["status"] in TOUCHED for x in r["mods"]) else 0
         report = scan.run(paks)
     except (FileNotFoundError, ValueError) as e:
         print(f"pakwatch: {e}", file=sys.stderr)
